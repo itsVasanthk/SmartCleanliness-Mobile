@@ -1,3 +1,12 @@
+import React, { useState, useEffect } from 'react';
+import { View, StyleSheet, FlatList, Alert, ScrollView, TouchableOpacity, Dimensions } from 'react-native';
+import { Text, Card, Title, Paragraph, Button, FAB, TextInput, List, Divider, ActivityIndicator, useTheme, Portal, Avatar, IconButton, Modal } from 'react-native-paper';
+import { Calendar as CalendarIcon, MapPin, Users, Plus, ChevronRight, Clock, Award } from 'lucide-react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { fetchVolunteerEvents, createEvent, fetchEventParticipants } from '../api/api';
+
+const { width } = Dimensions.get('window');
+
 const ManageEventsScreen = ({ route }) => {
   const { user } = route.params;
   const [events, setEvents] = useState([]);
@@ -139,82 +148,78 @@ const ManageEventsScreen = ({ route }) => {
         <Modal 
           visible={modalVisible} 
           onDismiss={() => setModalVisible(false)} 
-          contentContainerStyle={styles.modalFull}
+          contentContainerStyle={styles.modalContentStyle}
         >
-          <View style={styles.modalContent}>
-            <ScrollView showsVerticalScrollIndicator={false}>
-              <View style={styles.modalHeader}>
-                 <Text style={styles.modalTitle}>Host Cleanup Event</Text>
-                 <IconButton icon="close" onPress={() => setModalVisible(false)} size={24} />
-              </View>
+          <ScrollView showsVerticalScrollIndicator={false}>
+            <View style={styles.modalHeader}>
+               <Text style={styles.modalTitle}>Host Cleanup Event</Text>
+               <IconButton icon="close" onPress={() => setModalVisible(false)} size={24} />
+            </View>
 
-              <View style={styles.formContainer}>
-                 <TextInput label="Event Title" value={title} onChangeText={setTitle} mode="outlined" style={styles.input} />
-                 <TextInput label="Description" value={description} onChangeText={setDescription} mode="outlined" multiline numberOfLines={3} style={styles.input} />
-                 <TextInput label="Area" value={area} onChangeText={setArea} mode="outlined" style={styles.input} left={<TextInput.Icon icon="map-marker" />} />
+            <View style={styles.formContainer}>
+               <TextInput label="Event Title" value={title} onChangeText={setTitle} mode="outlined" style={styles.input} />
+               <TextInput label="Description" value={description} onChangeText={setDescription} mode="outlined" multiline numberOfLines={3} style={styles.input} />
+               <TextInput label="Area" value={area} onChangeText={setArea} mode="outlined" style={styles.input} left={<TextInput.Icon icon="map-marker" />} />
 
-                 <TouchableOpacity style={styles.datePickerButton} onPress={() => setShowDatePicker(true)}>
-                   <View style={styles.dateIconContainer}><CalendarIcon size={20} color="#2E7D32" /></View>
-                   <View><Text style={styles.dateLabel}>Event Date</Text><Text style={styles.dateValue}>{eventDate.toDateString()}</Text></View>
-                 </TouchableOpacity>
+               <TouchableOpacity style={styles.datePickerButton} onPress={() => setShowDatePicker(true)}>
+                 <View style={styles.dateIconContainer}><CalendarIcon size={20} color="#2E7D32" /></View>
+                 <View><Text style={styles.dateLabel}>Event Date</Text><Text style={styles.dateValue}>{eventDate.toDateString()}</Text></View>
+               </TouchableOpacity>
 
-                 {showDatePicker && <DateTimePicker value={eventDate} mode="date" display="default" minimumDate={new Date()} onChange={onDateChange} />}
-                 
-                 <TextInput label="Reward Points" value={points} onChangeText={setPoints} keyboardType="numeric" mode="outlined" style={styles.input} left={<TextInput.Icon icon="star" />} />
-                 
-                 <Button mode="contained" onPress={handleCreateEvent} loading={submitting} style={styles.createBtn} contentStyle={{ height: 50 }}>
-                   Confirm and Schedule
-                 </Button>
-              </View>
-            </ScrollView>
-          </View>
+               {showDatePicker && <DateTimePicker value={eventDate} mode="date" display="default" minimumDate={new Date()} onChange={onDateChange} />}
+               
+               <TextInput label="Reward Points" value={points} onChangeText={setPoints} keyboardType="numeric" mode="outlined" style={styles.input} left={<TextInput.Icon icon="star" />} />
+               
+               <Button mode="contained" onPress={handleCreateEvent} loading={submitting} style={styles.createBtn} contentStyle={{ height: 50 }}>
+                 Confirm and Schedule
+               </Button>
+            </View>
+          </ScrollView>
         </Modal>
 
         {/* Participants Modal */}
         <Modal 
           visible={participantsModalVisible} 
           onDismiss={() => setParticipantsModalVisible(false)} 
-          contentContainerStyle={styles.modalFull}
+          contentContainerStyle={styles.modalContentStyle}
         >
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-               <Text style={styles.modalTitle}>Volunteers</Text>
-               <IconButton icon="close" onPress={() => setParticipantsModalVisible(false)} size={24} />
-            </View>
-            <Text style={styles.modalSubtitle}>{selectedEvent?.title}</Text>
-            
-            <View style={styles.detailBox}>
-               <Text style={styles.volunteerDetailLine}>Details of who joined the event:</Text>
-            </View>
-
-            <Divider style={{ marginVertical: 15 }} />
-            
-            {loadingParticipants ? (
-              <ActivityIndicator style={{ margin: 40 }} color="#2E7D32" />
-            ) : participants.length > 0 ? (
-              <FlatList
-                data={participants}
-                keyExtractor={(item, index) => index.toString()}
-                style={{ maxHeight: 350 }}
-                renderItem={({ item }) => (
-                  <List.Item
-                    title={item.name}
-                    description={item.email}
-                    titleStyle={styles.listItemTitle}
-                    descriptionStyle={styles.listItemDesc}
-                    left={props => <Avatar.Text size={42} style={{ backgroundColor: '#2E7D32' }} label={item.name[0].toUpperCase()} />}
-                    right={() => <Text style={styles.joinedAt}>{item.joined_at.split(' ')[0]}</Text>}
-                    style={styles.listItem}
-                  />
-                )}
-              />
-            ) : (
-              <View style={styles.emptyContainer}>
-                 <Users size={40} color="#ccc" />
-                 <Text style={styles.emptyText}>No volunteers yet.</Text>
-              </View>
-            )}
+          <View style={styles.modalHeader}>
+             <Text style={styles.modalTitle}>Volunteers</Text>
+             <IconButton icon="close" onPress={() => setParticipantsModalVisible(false)} size={24} />
           </View>
+          <Text style={styles.modalSubtitle}>{selectedEvent?.title}</Text>
+          
+          <View style={styles.detailBox}>
+             <Text style={styles.volunteerDetailLine}>Details of who joined the event:</Text>
+          </View>
+
+          <Divider style={{ marginVertical: 15 }} />
+          
+          {loadingParticipants ? (
+            <ActivityIndicator style={{ margin: 40 }} color="#2E7D32" />
+          ) : participants.length > 0 ? (
+            <FlatList
+              data={participants}
+              keyExtractor={(item, index) => index.toString()}
+              style={{ maxHeight: 350 }}
+              renderItem={({ item }) => (
+                <List.Item
+                  title={item.name}
+                  description={item.email}
+                  titleStyle={styles.listItemTitle}
+                  descriptionStyle={styles.listItemDesc}
+                  left={props => <Avatar.Text size={42} style={{ backgroundColor: '#2E7D32' }} label={item.name[0].toUpperCase()} />}
+                  right={() => <Text style={styles.joinedAt}>{item.joined_at.split(' ')[0]}</Text>}
+                  style={styles.listItem}
+                />
+              )}
+            />
+          ) : (
+            <View style={styles.emptyContainer}>
+               <Users size={40} color="#ccc" />
+               <Text style={styles.emptyText}>No volunteers yet.</Text>
+            </View>
+          )}
         </Modal>
       </Portal>
 
@@ -323,24 +328,19 @@ const styles = StyleSheet.create({
     bottom: 0,
     borderRadius: 20,
   },
-  modalFull: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalContent: {
+  modalContentStyle: {
     backgroundColor: 'white',
-    width: width * 0.88, // 88% of screen width
-    padding: 24, // Internal padding
-    borderRadius: 30,
-    elevation: 24,
+    margin: 20,
+    padding: 24,
+    borderRadius: 24,
+    elevation: 10,
     maxHeight: '85%',
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 5,
+    marginBottom: 8,
   },
   modalTitle: {
     fontSize: 24,
@@ -364,7 +364,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   formContainer: {
-    marginTop: 15,
+    marginTop: 10,
   },
   input: {
     marginBottom: 16,
@@ -434,8 +434,5 @@ const styles = StyleSheet.create({
     color: '#777',
   }
 });
-
-export default ManageEventsScreen;
-
 
 export default ManageEventsScreen;
