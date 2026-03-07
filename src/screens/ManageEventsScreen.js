@@ -1,10 +1,3 @@
-import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, FlatList, Alert, Modal, ScrollView, TouchableOpacity } from 'react-native';
-import { Text, Card, Title, Paragraph, Button, FAB, TextInput, List, Divider, ActivityIndicator, useTheme, Portal, Avatar, IconButton } from 'react-native-paper';
-import { Calendar as CalendarIcon, MapPin, Users, Plus, ChevronRight, Clock, Award } from 'lucide-react-native';
-import DateTimePicker from '@react-native-community/datetimepicker';
-import { fetchVolunteerEvents, createEvent, fetchEventParticipants } from '../api/api';
-
 const ManageEventsScreen = ({ route }) => {
   const { user } = route.params;
   const [events, setEvents] = useState([]);
@@ -15,11 +8,10 @@ const ManageEventsScreen = ({ route }) => {
   const [loadingParticipants, setLoadingParticipants] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState(null);
   
-  // New event form state
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [area, setArea] = useState('');
-  const [eventDate, setEventDate] = useState(new Date(new Date().getTime() + 86400000)); // Default tomorrow
+  const [eventDate, setEventDate] = useState(new Date(new Date().getTime() + 86400000));
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [points, setPoints] = useState('100');
   const [submitting, setSubmitting] = useState(false);
@@ -31,6 +23,7 @@ const ManageEventsScreen = ({ route }) => {
       const data = await fetchVolunteerEvents(user.user_id);
       setEvents(data);
     } catch (err) {
+      console.error(err);
       Alert.alert('Error', 'Failed to load events');
     } finally {
       setLoading(false);
@@ -46,7 +39,6 @@ const ManageEventsScreen = ({ route }) => {
       Alert.alert('Error', 'Please fill in all required fields');
       return;
     }
-
     setSubmitting(true);
     try {
       const formattedDate = eventDate.toISOString().split('T')[0];
@@ -58,12 +50,12 @@ const ManageEventsScreen = ({ route }) => {
         points: parseInt(points),
         created_by: user.user_id
       });
-      Alert.alert('Success', 'Cleanup event created correctly!');
+      Alert.alert('Success', 'Event Created Successfully!');
       setModalVisible(false);
       resetForm();
       loadEvents();
     } catch (err) {
-      Alert.alert('Error', err.message || 'Failed to create event');
+      Alert.alert('Error', 'Failed to create event');
     } finally {
       setSubmitting(false);
     }
@@ -79,9 +71,7 @@ const ManageEventsScreen = ({ route }) => {
 
   const onDateChange = (event, selectedDate) => {
     setShowDatePicker(false);
-    if (selectedDate) {
-      setEventDate(selectedDate);
-    }
+    if (selectedDate) setEventDate(selectedDate);
   };
 
   const showParticipants = async (event) => {
@@ -102,43 +92,31 @@ const ManageEventsScreen = ({ route }) => {
     <Card style={styles.eventCard} onPress={() => showParticipants(item)}>
       <Card.Content>
         <View style={styles.cardHeader}>
-          <View style={styles.titleInfo}>
+          <View style={{ flex: 1 }}>
             <Title style={styles.eventTitle}>{item.title}</Title>
             <View style={styles.badgeRow}>
                <View style={styles.statusBadge}>
                  <Text style={styles.statusText}>{item.status}</Text>
                </View>
                <View style={styles.pointsBadge}>
-                 <Award size={12} color="#F57C00" />
+                 <Award size={12} color="#FFA000" />
                  <Text style={styles.pointsText}>{item.points} pts</Text>
                </View>
             </View>
           </View>
-          <ChevronRight size={20} color="#666" />
+          <ChevronRight size={20} color="#999" />
         </View>
-        
         <Divider style={styles.cardDivider} />
-        
         <View style={styles.infoRow}>
-          <View style={styles.infoItem}>
-            <Clock size={14} color={theme.colors.primary} />
-            <Text style={styles.infoText}>{item.date}</Text>
-          </View>
-          <View style={styles.infoItem}>
-            <MapPin size={14} color={theme.colors.primary} />
-            <Text style={styles.infoText}>{item.area}</Text>
-          </View>
+          <View style={styles.infoItem}><Clock size={14} color="#2E7D32" /><Text style={styles.infoText}>{item.date}</Text></View>
+          <View style={styles.infoItem}><MapPin size={14} color="#2E7D32" /><Text style={styles.infoText}>{item.area}</Text></View>
         </View>
       </Card.Content>
     </Card>
   );
 
   if (loading) {
-    return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" />
-      </View>
-    );
+    return <View style={styles.centered}><ActivityIndicator size="large" color="#2E7D32" /></View>;
   }
 
   return (
@@ -150,149 +128,100 @@ const ManageEventsScreen = ({ route }) => {
         contentContainerStyle={styles.list}
         ListHeaderComponent={
           <View style={styles.headerArea}>
-            <Title style={styles.headerTitle}>Cleaning Campaigns</Title>
-            <Paragraph style={styles.headerSubtitle}>Manage and track city-wide cleanup efforts</Paragraph>
-          </View>
-        }
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Avatar.Icon size={80} icon="calendar-blank" style={{ backgroundColor: '#f0f0f0' }} color="#ccc" />
-            <Text style={styles.emptyText}>No cleanup events scheduled yet.</Text>
-            <Button mode="outlined" onPress={() => setModalVisible(true)} style={{ marginTop: 16 }}>Create First Event</Button>
+            <Text style={styles.headerTitle}>Cleaning Campaigns</Text>
+            <Text style={styles.headerSubtitle}>Manage and track city-wide cleanup efforts</Text>
           </View>
         }
       />
 
       <Portal>
         {/* Create Event Modal */}
-        <Modal visible={modalVisible} onDismiss={() => setModalVisible(false)} contentContainerStyle={styles.modal}>
-          <ScrollView showsVerticalScrollIndicator={false} style={styles.modalScroll}>
-            <View style={styles.modalHeader}>
-               <Title style={styles.modalTitle}>Host Cleanup Event</Title>
-               <IconButton icon="close" onPress={() => setModalVisible(false)} size={20} />
-            </View>
-
-            <TextInput 
-              label="Event Title" 
-              value={title} 
-              onChangeText={setTitle} 
-              mode="outlined" 
-              style={styles.input} 
-              placeholder="e.g. Marina Beach Cleanup"
-            />
-            
-            <TextInput 
-              label="Description" 
-              value={description} 
-              onChangeText={setDescription} 
-              mode="outlined" 
-              multiline 
-              numberOfLines={3} 
-              style={styles.input} 
-              placeholder="What needs to be done?"
-            />
-            
-            <TextInput 
-              label="Coverage Area" 
-              value={area} 
-              onChangeText={setArea} 
-              mode="outlined" 
-              style={styles.input} 
-              left={<TextInput.Icon icon="map-marker" />}
-              placeholder="e.g. Zone 10, Adyar"
-            />
-
-            <TouchableOpacity 
-              style={styles.datePickerButton} 
-              onPress={() => setShowDatePicker(true)}
-            >
-              <View style={styles.dateIconContainer}>
-                <CalendarIcon size={20} color={theme.colors.primary} />
+        <Modal 
+          visible={modalVisible} 
+          onDismiss={() => setModalVisible(false)} 
+          contentContainerStyle={styles.modalFull}
+        >
+          <View style={styles.modalContent}>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <View style={styles.modalHeader}>
+                 <Text style={styles.modalTitle}>Host Cleanup Event</Text>
+                 <IconButton icon="close" onPress={() => setModalVisible(false)} size={24} />
               </View>
-              <View>
-                <Text style={styles.dateLabel}>Event Date</Text>
-                <Text style={styles.dateValue}>{eventDate.toDateString()}</Text>
-              </View>
-            </TouchableOpacity>
 
-            {showDatePicker && (
-              <DateTimePicker
-                value={eventDate}
-                mode="date"
-                display="default"
-                minimumDate={new Date()}
-                onChange={onDateChange}
-              />
-            )}
-            
-            <TextInput 
-              label="Volunteer Reward Points" 
-              value={points} 
-              onChangeText={setPoints} 
-              keyboardType="numeric" 
-              mode="outlined" 
-              style={styles.input} 
-              left={<TextInput.Icon icon="star" />}
-            />
-            
-            <Button 
-              mode="contained" 
-              onPress={handleCreateEvent} 
-              loading={submitting} 
-              style={styles.createBtn}
-              contentStyle={{ height: 48 }}
-            >
-              Confirm and Schedule
-            </Button>
-          </ScrollView>
+              <View style={styles.formContainer}>
+                 <TextInput label="Event Title" value={title} onChangeText={setTitle} mode="outlined" style={styles.input} />
+                 <TextInput label="Description" value={description} onChangeText={setDescription} mode="outlined" multiline numberOfLines={3} style={styles.input} />
+                 <TextInput label="Area" value={area} onChangeText={setArea} mode="outlined" style={styles.input} left={<TextInput.Icon icon="map-marker" />} />
+
+                 <TouchableOpacity style={styles.datePickerButton} onPress={() => setShowDatePicker(true)}>
+                   <View style={styles.dateIconContainer}><CalendarIcon size={20} color="#2E7D32" /></View>
+                   <View><Text style={styles.dateLabel}>Event Date</Text><Text style={styles.dateValue}>{eventDate.toDateString()}</Text></View>
+                 </TouchableOpacity>
+
+                 {showDatePicker && <DateTimePicker value={eventDate} mode="date" display="default" minimumDate={new Date()} onChange={onDateChange} />}
+                 
+                 <TextInput label="Reward Points" value={points} onChangeText={setPoints} keyboardType="numeric" mode="outlined" style={styles.input} left={<TextInput.Icon icon="star" />} />
+                 
+                 <Button mode="contained" onPress={handleCreateEvent} loading={submitting} style={styles.createBtn} contentStyle={{ height: 50 }}>
+                   Confirm and Schedule
+                 </Button>
+              </View>
+            </ScrollView>
+          </View>
         </Modal>
 
         {/* Participants Modal */}
-        <Modal visible={participantsModalVisible} onDismiss={() => setParticipantsModalVisible(false)} contentContainerStyle={styles.participantsModal}>
-          <View style={styles.modalHeader}>
-             <Title style={styles.modalTitle}>Volunteers</Title>
-             <IconButton icon="close" onPress={() => setParticipantsModalVisible(false)} size={20} />
-          </View>
-          <Paragraph style={styles.eventSubtitle}>{selectedEvent?.title}</Paragraph>
-          <Text style={styles.volunteerDetailLine}>Details of who joined the event:</Text>
-          <Divider style={{ marginVertical: 12 }} />
-          
-          {loadingParticipants ? (
-            <ActivityIndicator style={{ margin: 40 }} />
-          ) : participants.length > 0 ? (
-            <FlatList
-              data={participants}
-              keyExtractor={(item, index) => index.toString()}
-              style={{ maxHeight: 350 }}
-              renderItem={({ item }) => (
-                <List.Item
-                  title={item.name}
-                  description={item.email}
-                  titleStyle={styles.listItemTitle}
-                  descriptionStyle={styles.listItemDesc}
-                  left={props => <Avatar.Text size={40} style={{ backgroundColor: theme.colors.primary }} label={item.name[0]} />}
-                  right={() => (
-                    <View style={{ justifyContent: 'center' }}>
-                      <Text style={styles.joinedAt}>{item.joined_at.split(' ')[0]}</Text>
-                    </View>
-                  )}
-                  style={styles.listItem}
-                />
-              )}
-            />
-          ) : (
-            <View style={styles.emptyContainer}>
-               <Users size={40} color="#ccc" />
-               <Text style={styles.emptyText}>Waiting for volunteers to join.</Text>
+        <Modal 
+          visible={participantsModalVisible} 
+          onDismiss={() => setParticipantsModalVisible(false)} 
+          contentContainerStyle={styles.modalFull}
+        >
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+               <Text style={styles.modalTitle}>Volunteers</Text>
+               <IconButton icon="close" onPress={() => setParticipantsModalVisible(false)} size={24} />
             </View>
-          )}
+            <Text style={styles.modalSubtitle}>{selectedEvent?.title}</Text>
+            
+            <View style={styles.detailBox}>
+               <Text style={styles.volunteerDetailLine}>Details of who joined the event:</Text>
+            </View>
+
+            <Divider style={{ marginVertical: 15 }} />
+            
+            {loadingParticipants ? (
+              <ActivityIndicator style={{ margin: 40 }} color="#2E7D32" />
+            ) : participants.length > 0 ? (
+              <FlatList
+                data={participants}
+                keyExtractor={(item, index) => index.toString()}
+                style={{ maxHeight: 350 }}
+                renderItem={({ item }) => (
+                  <List.Item
+                    title={item.name}
+                    description={item.email}
+                    titleStyle={styles.listItemTitle}
+                    descriptionStyle={styles.listItemDesc}
+                    left={props => <Avatar.Text size={42} style={{ backgroundColor: '#2E7D32' }} label={item.name[0].toUpperCase()} />}
+                    right={() => <Text style={styles.joinedAt}>{item.joined_at.split(' ')[0]}</Text>}
+                    style={styles.listItem}
+                  />
+                )}
+              />
+            ) : (
+              <View style={styles.emptyContainer}>
+                 <Users size={40} color="#ccc" />
+                 <Text style={styles.emptyText}>No volunteers yet.</Text>
+              </View>
+            )}
+          </View>
         </Modal>
       </Portal>
 
       <FAB
         icon="plus"
         label="New Event"
-        style={[styles.fab, { backgroundColor: theme.colors.primary }]}
+        style={[styles.fab, { backgroundColor: '#2E7D32' }]}
         color="#fff"
         onPress={() => setModalVisible(true)}
       />
@@ -303,135 +232,139 @@ const ManageEventsScreen = ({ route }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8F9FA',
+    backgroundColor: '#F0F4F3',
   },
   list: {
     padding: 20,
     paddingBottom: 100,
   },
   headerArea: {
-    marginBottom: 20,
+    marginBottom: 24,
+    marginTop: 10,
   },
   headerTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#1A1A1A',
+    fontSize: 28,
+    fontWeight: '800',
+    color: '#1B5E20',
   },
   headerSubtitle: {
     color: '#666',
+    fontSize: 15,
   },
   eventCard: {
     marginBottom: 16,
-    borderRadius: 16,
-    elevation: 3,
+    borderRadius: 20,
     backgroundColor: '#fff',
+    elevation: 3,
+    padding: 2,
     borderWidth: 1,
-    borderColor: '#eee',
+    borderColor: '#E0E0E0',
   },
   cardHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
   },
-  titleInfo: {
-    flex: 1,
-  },
   eventTitle: {
-    fontSize: 18,
-    lineHeight: 24,
+    fontSize: 19,
+    fontWeight: '700',
+    color: '#333',
   },
   badgeRow: {
     flexDirection: 'row',
-    marginTop: 4,
+    marginTop: 8,
     gap: 8,
   },
   statusBadge: {
-    backgroundColor: '#E3F2FD',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 4,
+    backgroundColor: '#E8F5E9',
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 6,
   },
   statusText: {
-    fontSize: 10,
-    fontWeight: 'bold',
-    color: '#1976D2',
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#2E7D32',
     textTransform: 'uppercase',
   },
   pointsBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFF3E0',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 4,
+    backgroundColor: '#FFF8E1',
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 6,
     gap: 4,
   },
   pointsText: {
-    fontSize: 10,
-    fontWeight: 'bold',
-    color: '#F57C00',
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#FFA000',
   },
   cardDivider: {
-    marginVertical: 12,
+    marginVertical: 14,
   },
   infoRow: {
     flexDirection: 'row',
-    gap: 16,
+    gap: 20,
   },
   infoItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 8,
   },
   infoText: {
     fontSize: 13,
-    color: '#444',
+    color: '#555',
   },
   fab: {
     position: 'absolute',
-    margin: 16,
+    margin: 20,
     right: 0,
     bottom: 0,
-    borderRadius: 16,
+    borderRadius: 20,
   },
-  modal: {
+  modalFull: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
     backgroundColor: 'white',
-    padding: 20,
-    marginHorizontal: 15,
-    borderRadius: 24,
-    elevation: 10,
-    flexShrink: 1,
-  },
-  modalScroll: {
-    maxHeight: '90%',
-  },
-  participantsModal: {
-    backgroundColor: 'white',
-    padding: 20,
-    marginHorizontal: 15,
-    borderRadius: 24,
+    width: width * 0.88, // 88% of screen width
+    padding: 24, // Internal padding
+    borderRadius: 30,
+    elevation: 24,
     maxHeight: '85%',
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 4,
+    marginBottom: 5,
   },
   modalTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
+    fontSize: 24,
+    fontWeight: '900',
+    color: '#2E7D32',
   },
-  eventSubtitle: {
+  modalSubtitle: {
+    fontSize: 15,
     color: '#666',
-    marginTop: -4,
-    marginBottom: 8,
+    marginTop: -5,
+  },
+  detailBox: {
+    backgroundColor: '#F1F8E9',
+    padding: 12,
+    borderRadius: 12,
+    marginTop: 15,
   },
   volunteerDetailLine: {
     fontSize: 14,
-    color: '#1A1A1A',
-    fontWeight: '500',
-    marginTop: 4,
+    color: '#1B5E20',
+    fontWeight: '700',
+  },
+  formContainer: {
+    marginTop: 15,
   },
   input: {
     marginBottom: 16,
@@ -440,31 +373,32 @@ const styles = StyleSheet.create({
   datePickerButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 12,
+    padding: 14,
     borderWidth: 1,
-    borderColor: '#79747E', // MD3 Outline color
-    borderRadius: 4,
+    borderColor: '#E0E0E0', 
+    borderRadius: 12,
     marginBottom: 16,
     gap: 12,
+    backgroundColor: '#FAFAFA',
   },
   dateIconContainer: {
     padding: 8,
     backgroundColor: '#E8F5E9',
-    borderRadius: 8,
+    borderRadius: 10,
   },
   dateLabel: {
-    fontSize: 12,
-    color: '#666',
+    fontSize: 11,
+    color: '#777',
+    fontWeight: '700',
   },
   dateValue: {
     fontSize: 16,
-    fontWeight: '500',
-    color: '#1A1A1A',
+    fontWeight: '700',
+    color: '#333',
   },
   createBtn: {
-    marginTop: 8,
-    marginBottom: 10,
-    borderRadius: 12,
+    borderRadius: 14,
+    marginTop: 10,
   },
   centered: {
     flex: 1,
@@ -473,29 +407,35 @@ const styles = StyleSheet.create({
   },
   emptyContainer: {
     alignItems: 'center',
-    marginTop: 60,
+    padding: 40,
   },
   emptyText: {
-    marginTop: 12,
-    color: '#999',
+    marginTop: 15,
+    color: '#AAA',
     fontSize: 16,
   },
   joinedAt: {
     fontSize: 11,
-    color: '#888',
+    color: '#999',
+    alignSelf: 'center',
   },
   listItem: {
-    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
+    paddingVertical: 10,
     paddingHorizontal: 0,
   },
   listItemTitle: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   listItemDesc: {
     fontSize: 13,
+    color: '#777',
   }
 });
+
+export default ManageEventsScreen;
 
 
 export default ManageEventsScreen;
