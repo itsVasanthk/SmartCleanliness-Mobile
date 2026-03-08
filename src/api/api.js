@@ -110,8 +110,8 @@ export const markTransportComplete = async (complaintId) => {
 // Awareness APIs
 export const fetchAwarenessData = async () => {
   try {
-    const response = await apiClient.get('/awareness/data');
-    return response.data;
+    const response = await apiClient.get('/awareness/content');
+    return response.data.data;
   } catch (error) {
     throw error.response?.data || { message: 'Network error' };
   }
