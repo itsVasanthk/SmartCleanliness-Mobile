@@ -214,7 +214,12 @@ const CitizenDashboard = ({ navigation, route }) => {
                 <Text style={styles.secondaryCardText}>Emergency Help</Text>
               </Card.Content>
             </Card>
-            <View style={{ flex: 1 }} />
+            <Card style={[styles.secondaryCard, { backgroundColor: '#E8F5E9' }]} onPress={() => navigation.navigate('LocateWaste', { user })}>
+              <Card.Content style={styles.secondaryCardContent}>
+                <IconButton icon="map-marker-radius" size={30} iconColor="#2E7D32" />
+                <Text style={styles.secondaryCardText}>Locate Waste</Text>
+              </Card.Content>
+            </Card>
           </View>
         </View>
       </ScrollView>

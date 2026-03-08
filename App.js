@@ -20,6 +20,7 @@ import DonationScreen from './src/screens/DonationScreen';
 import EmergencyRequestScreen from './src/screens/EmergencyRequestScreen';
 import EmergencyStatusScreen from './src/screens/EmergencyStatusScreen';
 import EmergencyManagementScreen from './src/screens/EmergencyManagementScreen';
+import LocateWasteScreen from './src/screens/LocateWasteScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -127,6 +128,11 @@ export default function App() {
             name="EmergencyManagement" 
             component={EmergencyManagementScreen} 
             options={{ title: 'Manage Help Funds' }}
+          />
+          <Stack.Screen 
+            name="LocateWaste" 
+            component={LocateWasteScreen} 
+            options={{ title: 'Locate Nearby Waste' }}
           />
         </Stack.Navigator>
       </NavigationContainer>

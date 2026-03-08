@@ -117,6 +117,15 @@ export const fetchAwarenessData = async () => {
   }
 };
 
+export const fetchWasteAreas = async () => {
+  try {
+    const response = await apiClient.get('/locate-waste');
+    return response.data.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Network error' };
+  }
+};
+
 // Authority APIs
 export const fetchAuthorityStats = async () => {
   try {
