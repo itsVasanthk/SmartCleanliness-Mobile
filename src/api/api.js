@@ -107,6 +107,15 @@ export const markTransportComplete = async (complaintId) => {
   }
 };
 
+export const fetchLeaderboard = async () => {
+  try {
+    const response = await apiClient.get('/volunteer/leaderboard');
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Network error' };
+  }
+};
+
 // Awareness APIs
 export const fetchAwarenessData = async () => {
   try {
