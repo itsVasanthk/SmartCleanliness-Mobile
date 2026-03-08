@@ -180,17 +180,19 @@ const styles = StyleSheet.create({
   },
   header: {
     borderRadius: 0,
-    elevation: 4,
+    elevation: 0, // Removed elevation to remove the line/shadow
     backgroundColor: '#fff',
+    paddingTop: 10,
   },
   title: {
-    fontSize: 24,
+    fontSize: 26,
     fontWeight: 'bold',
-    color: '#333',
+    color: '#1a1a1a',
+    marginBottom: 4,
   },
   categoryScroll: {
     paddingHorizontal: 16,
-    paddingBottom: 16,
+    paddingVertical: 12, // Added vertical padding to reduce congestion
     flexDirection: 'row',
   },
   catBtn: {
