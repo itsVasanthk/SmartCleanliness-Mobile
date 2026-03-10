@@ -4,16 +4,18 @@ import { TextInput, Button, Text, Title, HelperText, useTheme, SegmentedButtons,
 import { Camera, MapPin, Upload, X } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
-import { submitReport } from '../api/api';
+import { submitReport, editReport, UPLOAD_URL } from '../api/api';
 
 const ReportScreen = ({ navigation, route }) => {
-  const { user } = route.params;
-  const [garbageType, setGarbageType] = useState('Organic');
-  const [otherDescription, setOtherDescription] = useState('');
-  const [area, setArea] = useState('');
-  const [pincode, setPincode] = useState('');
-  const [landmark, setLandmark] = useState('');
-  const [image, setImage] = useState(null);
+  const { user, editReport: existingReport } = route.params;
+  const isEditMode = !!existingReport;
+  
+  const [garbageType, setGarbageType] = useState(existingReport?.garbage_type || 'Organic');
+  const [otherDescription, setOtherDescription] = useState(existingReport?.description || '');
+  const [area, setArea] = useState(existingReport?.area || '');
+  const [pincode, setPincode] = useState(existingReport?.pincode || '');
+  const [landmark, setLandmark] = useState(existingReport?.landmark || '');
+  const [image, setImage] = useState(existingReport?.image ? { uri: `${UPLOAD_URL}/${existingReport.image}`, isExisting: true } : null);
   const [loading, setLoading] = useState(false);
   const [locating, setLocating] = useState(false);
   const theme = useTheme();
@@ -90,21 +92,30 @@ const ReportScreen = ({ navigation, route }) => {
     formData.append('pincode', pincode);
     formData.append('landmark', landmark);
     
-    // Process image for upload
-    const filename = image.uri.split('/').pop();
-    const match = /\.(\w+)$/.exec(filename);
-    const type = match ? `image/${match[1]}` : `image`;
-    
-    formData.append('image', {
-      uri: image.uri,
-      name: filename,
-      type: type,
-    });
+    if (image && !image.isExisting) {
+        const filename = image.uri.split('/').pop();
+        const match = /\.(\w+)$/.exec(filename);
+        const type = match ? `image/${match[1]}` : `image`;
+        
+        formData.append('image', {
+          uri: image.uri,
+          name: filename,
+          type: type,
+        });
+    } else if (isEditMode && image && image.isExisting) {
+        formData.append('existing_image', existingReport.image);
+    }
 
     try {
-      const result = await submitReport(formData);
+      let result;
+      if (isEditMode) {
+          result = await editReport(existingReport.complaint_id, formData);
+      } else {
+          result = await submitReport(formData);
+      }
+
       if (result.success) {
-        Alert.alert('Success', 'Report submitted successfully!', [
+        Alert.alert('Success', isEditMode ? 'Report updated successfully!' : 'Report submitted successfully!', [
           { text: 'OK', onPress: () => navigation.goBack() }
         ]);
       }
@@ -121,7 +132,7 @@ const ReportScreen = ({ navigation, route }) => {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
-      <Title style={styles.sectionTitle}>1. Capture Photo</Title>
+      <Title style={styles.sectionTitle}>1. {isEditMode ? 'Update Photo (Optional)' : 'Capture Photo'}</Title>
       
       {image ? (
         <View style={styles.imagePreviewContainer}>
@@ -159,15 +170,14 @@ const ReportScreen = ({ navigation, route }) => {
         style={styles.segmented}
       />
 
-      {garbageType === 'Other' && (
-        <TextInput
-          label="Describe waste"
-          value={otherDescription}
-          onChangeText={setOtherDescription}
-          mode="outlined"
-          style={styles.input}
-        />
-      )}
+      <TextInput
+        label="Describe waste"
+        value={otherDescription}
+        onChangeText={setOtherDescription}
+        mode="outlined"
+        style={styles.input}
+        placeholder="e.g. Broken glass, medical waste, etc."
+      />
 
       <View style={styles.locationHeader}>
         <Title style={styles.sectionTitle}>3. Location</Title>
@@ -215,7 +225,7 @@ const ReportScreen = ({ navigation, route }) => {
         style={styles.submitButton}
         contentStyle={styles.submitButtonContent}
       >
-        Submit Report
+        {isEditMode ? 'Update Report' : 'Submit Report'}
       </Button>
     </ScrollView>
   );

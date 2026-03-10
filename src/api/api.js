@@ -262,4 +262,83 @@ export const approveEmergencyRequest = async (requestId) => {
   }
 };
 
+// Authority Decison
+export const authorityDecide = async (complaintId, decision, reason) => {
+  try {
+    const response = await apiClient.post('/authority/decide', { complaint_id: complaintId, decision, reason });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { message: 'Network error' };
+  }
+};
+
+// Admin APIs
+export const fetchAdminStats = async () => {
+    try {
+      const response = await apiClient.get('/admin/stats');
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: 'Network error' };
+    }
+  };
+  
+  export const fetchEscalatedComplaints = async () => {
+    try {
+      const response = await apiClient.get('/admin/complaints/escalated');
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: 'Network error' };
+    }
+  };
+  
+  export const assignVehicleAdmin = async (complaintId, volunteerId) => {
+    try {
+      const response = await apiClient.post('/admin/assign_vehicle', { complaint_id: complaintId, volunteer_id: volunteerId });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: 'Network error' };
+    }
+  };
+
+  export const fetchAvailableVehiclesAdmin = async () => {
+    try {
+      const response = await apiClient.get('/admin/vehicles/available');
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: 'Network error' };
+    }
+  };
+
+  export const createEventAdmin = async (eventData) => {
+    try {
+      const response = await apiClient.post('/admin/events', eventData);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: 'Network error' };
+    }
+  };
+
+// Citizen Feedback & Edit
+export const submitFeedback = async (feedbackData) => {
+    try {
+      const response = await apiClient.post('/report/feedback', feedbackData);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: 'Network error' };
+    }
+  };
+  
+  export const editReport = async (complaintId, formData) => {
+    try {
+      const response = await axios.put(`${BASE_URL}/report/edit/${complaintId}`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: 'Network error' };
+    }
+  };
+
 export default apiClient;

@@ -26,6 +26,8 @@ const LoginScreen = ({ navigation }) => {
           navigation.replace('CitizenDashboard', { user: result.user });
         } else if (result.user.role === 'authority') {
           navigation.replace('AuthorityDashboard', { user: result.user });
+        } else if (result.user.role === 'admin') {
+          navigation.replace('AdminDashboard', { user: result.user });
         } else {
           alert('Role not recognized. Please contact support.');
         }

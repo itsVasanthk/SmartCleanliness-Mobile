@@ -21,6 +21,7 @@ import EmergencyRequestScreen from './src/screens/EmergencyRequestScreen';
 import EmergencyStatusScreen from './src/screens/EmergencyStatusScreen';
 import EmergencyManagementScreen from './src/screens/EmergencyManagementScreen';
 import LocateWasteScreen from './src/screens/LocateWasteScreen';
+import AdminDashboard from './src/screens/AdminDashboard';
 
 const Stack = createNativeStackNavigator();
 
@@ -133,6 +134,11 @@ export default function App() {
             name="LocateWaste" 
             component={LocateWasteScreen} 
             options={{ title: 'Locate Nearby Waste' }}
+          />
+          <Stack.Screen 
+            name="AdminDashboard" 
+            component={AdminDashboard} 
+            options={{ title: 'Admin Panel', headerLeft: () => null }}
           />
         </Stack.Navigator>
       </NavigationContainer>

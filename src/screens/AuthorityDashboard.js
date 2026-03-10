@@ -1,19 +1,19 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, StyleSheet, ScrollView, RefreshControl, Alert, FlatList } from 'react-native';
-import { Text, Card, Title, Paragraph, Button, List, Divider, useTheme, ActivityIndicator, Modal, Portal, IconButton, Avatar } from 'react-native-paper';
-import { LayoutDashboard, ClipboardCheck, Truck, Users, User, LogOut, X, Heart, Search } from 'lucide-react-native';
-import { fetchAuthorityStats, fetchAllComplaints, fetchAvailableVehicles, assignVehicle } from '../api/api';
+import { View, StyleSheet, ScrollView, RefreshControl, Alert, TextInput } from 'react-native';
+import { Text, Card, Title, Paragraph, Button, Divider, useTheme, ActivityIndicator, Modal, Portal, IconButton, Avatar } from 'react-native-paper';
+import { ClipboardCheck, LayoutDashboard, User, LogOut, X, CheckCircle, XCircle } from 'lucide-react-native';
+import { fetchAuthorityStats, fetchAllComplaints, authorityDecide } from '../api/api';
 
 const AuthorityDashboard = ({ navigation, route }) => {
   const { user } = route.params;
   const [stats, setStats] = useState(null);
   const [complaints, setComplaints] = useState([]);
-  const [vehicles, setVehicles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [visible, setVisible] = useState(false); // Vehicle assignment modal
-  const [profileVisible, setProfileVisible] = useState(false);
+  const [decisionVisible, setDecisionVisible] = useState(false);
+  const [disagreeReason, setDisagreeReason] = useState('');
   const [selectedComplaint, setSelectedComplaint] = useState(null);
+  const [profileVisible, setProfileVisible] = useState(false);
   const theme = useTheme();
 
   const loadData = async () => {
@@ -41,31 +41,26 @@ const AuthorityDashboard = ({ navigation, route }) => {
     loadData();
   }, []);
 
-  const showModal = async (complaint) => {
-    setSelectedComplaint(complaint);
-    try {
-      const availableVehicles = await fetchAvailableVehicles();
-      setVehicles(availableVehicles);
-      setVisible(true);
-    } catch (err) {
-      Alert.alert('Error', 'Failed to fetch available vehicles');
+  const handleDecision = async (decision) => {
+    if (decision === 'disagreed' && !disagreeReason.trim()) {
+      Alert.alert('Error', 'Please provide a reason for disagreement');
+      return;
     }
-  };
 
-  const hideModal = () => {
-    setVisible(false);
-    setSelectedComplaint(null);
-  };
-
-  const handleAssign = async (volunteerId) => {
     try {
-      await assignVehicle(selectedComplaint.id, volunteerId);
-      Alert.alert('Success', 'Vehicle assigned successfully');
-      hideModal();
+      await authorityDecide(selectedComplaint.id, decision, disagreeReason);
+      Alert.alert('Success', `Report ${decision} successfully`);
+      setDecisionVisible(false);
+      setDisagreeReason('');
       loadData();
     } catch (err) {
       Alert.alert('Error', err.message);
     }
+  };
+
+  const openDecisionModal = (complaint) => {
+    setSelectedComplaint(complaint);
+    setDecisionVisible(true);
   };
 
   const handleLogout = () => {
@@ -101,8 +96,8 @@ const AuthorityDashboard = ({ navigation, route }) => {
         <View style={styles.header}>
           <View style={styles.headerTop}>
             <View>
-              <Title>Authority Panel</Title>
-              <Text style={styles.subtitle}>System-wide overview</Text>
+              <Title>Government Panel</Title>
+              <Text style={styles.subtitle}>Report Review & Verification</Text>
             </View>
             <IconButton 
               icon={() => <User size={24} color={theme.colors.primary} />} 
@@ -133,7 +128,7 @@ const AuthorityDashboard = ({ navigation, route }) => {
               <Title style={styles.profileName}>{user.name}</Title>
               <Text style={styles.profileEmail}>{user.email}</Text>
               <View style={styles.roleChip}>
-                <Text style={styles.roleText}>{user.role.toUpperCase()}</Text>
+                <Text style={styles.roleText}>GOVERNMENT AUTHORITY</Text>
               </View>
             </View>
 
@@ -163,13 +158,13 @@ const AuthorityDashboard = ({ navigation, route }) => {
             </Card.Content>
           </Card>
           
-          <Card style={[styles.statCard, { borderLeftColor: '#f44336', borderLeftWidth: 4 }]}>
+          <Card style={[styles.statCard, { borderLeftColor: '#FF9800', borderLeftWidth: 4 }]}>
             <Card.Content>
               <View style={styles.statHeader}>
-                <LayoutDashboard size={20} color="#f44336" />
-                <Text style={[styles.statVal, { color: '#f44336' }]}>{stats?.pending_complaints || 0}</Text>
+                <LayoutDashboard size={20} color="#FF9800" />
+                <Text style={[styles.statVal, { color: '#FF9800' }]}>{stats?.pending_decisions || 0}</Text>
               </View>
-              <Text style={styles.statLab}>Pending</Text>
+              <Text style={styles.statLab}>Pending Review</Text>
             </Card.Content>
           </Card>
         </View>
@@ -178,117 +173,108 @@ const AuthorityDashboard = ({ navigation, route }) => {
           <Card style={[styles.statCard, { borderLeftColor: '#4CAF50', borderLeftWidth: 4 }]}>
             <Card.Content>
               <View style={styles.statHeader}>
-                <Truck size={20} color="#4CAF50" />
-                <Text style={[styles.statVal, { color: '#4CAF50' }]}>{stats?.resolved_complaints || 0}</Text>
+                <CheckCircle size={20} color="#4CAF50" />
+                <Text style={[styles.statVal, { color: '#4CAF50' }]}>{stats?.agreed_complaints || 0}</Text>
               </View>
-              <Text style={styles.statLab}>Resolved</Text>
+              <Text style={styles.statLab}>Agreed</Text>
             </Card.Content>
           </Card>
           
-          <Card style={[styles.statCard, { borderLeftColor: '#E91E63', borderLeftWidth: 4 }]}>
+          <Card style={[styles.statCard, { borderLeftColor: '#f44336', borderLeftWidth: 4 }]}>
             <Card.Content>
               <View style={styles.statHeader}>
-                <Heart size={20} color="#E91E63" />
-                <Text style={[styles.statVal, { color: '#E91E63' }]}>₹{stats?.fund_balance || 0}</Text>
+                <XCircle size={20} color="#f44336" />
+                <Text style={[styles.statVal, { color: '#f44336' }]}>{stats?.disagreed_complaints || 0}</Text>
               </View>
-              <Text style={styles.statLab}>City Funds</Text>
-            </Card.Content>
-          </Card>
-        </View>
-
-        <View style={styles.statsGrid}>
-           <Card style={[styles.statCard, { borderLeftColor: '#FF9800', borderLeftWidth: 4 }]}>
-            <Card.Content>
-              <View style={styles.statHeader}>
-                <Users size={20} color="#FF9800" />
-                <Text style={[styles.statVal, { color: '#FF9800' }]}>{stats?.total_volunteers || 0}</Text>
-              </View>
-              <Text style={styles.statLab}>Volunteers</Text>
-            </Card.Content>
-          </Card>
-          
-          <Card style={[styles.statCard, { borderLeftColor: '#9C27B0', borderLeftWidth: 4 }]}>
-            <Card.Content>
-              <View style={styles.statHeader}>
-                <Search size={20} color="#9C27B0" />
-                <Text style={[styles.statVal, { color: '#9C27B0' }]}>{stats?.total_events || 0}</Text>
-              </View>
-              <Text style={styles.statLab}>Events Held</Text>
+              <Text style={styles.statLab}>Disagreed</Text>
             </Card.Content>
           </Card>
         </View>
 
         <View style={styles.sectionHeader}>
-          <View style={styles.titleRow}>
-            <Title>Recent Complaints</Title>
-            <View style={styles.headerButtons}>
-              <Button 
-                mode="outlined" 
-                onPress={() => navigation.navigate('ManageEvents', { user })}
-                compact
-                style={styles.manageBtn}
-                labelStyle={{ fontSize: 10 }}
-              >
-                Events
-              </Button>
-              <Button 
-                mode="contained" 
-                onPress={() => navigation.navigate('EmergencyManagement', { user })}
-                compact
-                style={[styles.manageBtn, { marginLeft: 4 }]}
-                buttonColor="#D32F2F"
-                textColor="#fff"
-                labelStyle={{ fontSize: 10 }}
-              >
-                Help Funds
-              </Button>
-            </View>
-          </View>
+          <Title>Reports to Review</Title>
         </View>
 
-        {complaints.map((item) => (
+        {complaints.filter(c => c.authority_decision === 'pending').map((item) => (
           <Card key={item.id} style={styles.complaintCard}>
             <Card.Title 
               title={item.type} 
               subtitle={item.area} 
-              right={() => <Text style={styles.statusLabel}>{item.status}</Text>}
+              right={() => <Text style={styles.statusLabel}>PENDING</Text>}
             />
             <Card.Content>
               <Paragraph>{item.description}</Paragraph>
               <Text style={styles.timestamp}>{item.created_at}</Text>
             </Card.Content>
             <Card.Actions>
-              {item.status === 'Pending' && (
-                <Button mode="contained" onPress={() => showModal(item)}>
-                  Assign Vehicle
-                </Button>
-              )}
+              <Button 
+                mode="contained" 
+                buttonColor="#4CAF50"
+                onPress={() => {
+                  setSelectedComplaint(item);
+                  handleDecision('agreed');
+                }}
+              >
+                Agree
+              </Button>
+              <Button 
+                mode="contained" 
+                buttonColor="#f44336"
+                onPress={() => openDecisionModal(item)}
+              >
+                Disagree
+              </Button>
             </Card.Actions>
+          </Card>
+        ))}
+
+        <Title style={[styles.sectionHeader, { fontSize: 18 }]}>Reviewed Reports</Title>
+        {complaints.filter(c => c.authority_decision !== 'pending').map((item) => (
+          <Card key={item.id} style={[styles.complaintCard, { opacity: 0.8 }]}>
+            <Card.Title 
+              title={item.type} 
+              subtitle={item.area} 
+              right={() => (
+                <View style={[styles.decisionBadge, { backgroundColor: item.authority_decision === 'agreed' ? '#E8F5E9' : '#FFEBEE' }]}>
+                  <Text style={{ color: item.authority_decision === 'agreed' ? '#2E7D32' : '#C62828', fontWeight: 'bold' }}>
+                    {item.authority_decision.toUpperCase()}
+                  </Text>
+                </View>
+              )}
+            />
+            <Card.Content>
+              <Paragraph>{item.description}</Paragraph>
+              {item.authority_reason && (
+                  <Text style={styles.reasonText}>Reason: {item.authority_reason}</Text>
+              )}
+            </Card.Content>
           </Card>
         ))}
       </ScrollView>
 
+      {/* Decision Modal (for disagreement) */}
       <Portal>
-        <Modal visible={visible} onDismiss={hideModal} contentContainerStyle={styles.assignModal}>
-          <Title>Assign Vehicle</Title>
-          <Paragraph style={styles.modalSubtitle}>Select an available volunteer's vehicle</Paragraph>
-          <Divider style={styles.divider} />
-          {vehicles.length > 0 ? (
-            <ScrollView style={{ maxHeight: 300 }}>
-              {vehicles.map((v) => (
-                <List.Item
-                  key={v.id}
-                  title={v.volunteer_name}
-                  description={`${v.type} - ${v.number} (${v.area})`}
-                  left={props => <Truck {...props} />}
-                  onPress={() => handleAssign(v.id)}
-                />
-              ))}
-            </ScrollView>
-          ) : (
-            <Paragraph>No vehicles available at the moment.</Paragraph>
-          )}
-          <Button onPress={hideModal} style={{ marginTop: 16 }}>Cancel</Button>
+        <Modal 
+          visible={decisionVisible} 
+          onDismiss={() => setDecisionVisible(false)} 
+          contentContainerStyle={styles.modalContent}
+        >
+          <Title>Reason for Disagreement</Title>
+          <Paragraph>Please explain why this report is being rejected.</Paragraph>
+          <TextInput
+            style={styles.textInput}
+            placeholder="Type your reason here..."
+            multiline
+            numberOfLines={4}
+            value={disagreeReason}
+            onChangeText={setDisagreeReason}
+          />
+          <View style={styles.modalActions}>
+            <Button onPress={() => setDecisionVisible(false)}>Cancel</Button>
+            <Button mode="contained" buttonColor="#f44336" onPress={() => handleDecision('disagreed')}>
+              Submit Disagreement
+            </Button>
+          </View>
         </Modal>
       </Portal>
     </View>
@@ -344,7 +330,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   avatar: {
-    backgroundColor: '#1B5E20',
+    backgroundColor: '#1E3A8A',
     marginBottom: 16,
   },
   profileName: {
@@ -356,7 +342,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   roleChip: {
-    backgroundColor: '#E8F5E9',
+    backgroundColor: '#E0E7FF',
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 16,
@@ -364,7 +350,7 @@ const styles = StyleSheet.create({
   roleText: {
     fontSize: 10,
     fontWeight: 'bold',
-    color: '#1B5E20',
+    color: '#1E3A8A',
   },
   divider: {
     marginBottom: 20,
@@ -399,18 +385,10 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#666',
   },
-  titleRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  manageBtn: {
-    borderRadius: 8,
-  },
   sectionHeader: {
     paddingHorizontal: 16,
-    marginTop: 16,
+    marginTop: 24,
+    marginBottom: 8,
   },
   complaintCard: {
     margin: 16,
@@ -421,27 +399,45 @@ const styles = StyleSheet.create({
   statusLabel: {
     marginRight: 16,
     fontWeight: 'bold',
-    color: '#2E7D32',
+    color: '#FF9800',
+    fontSize: 12,
+  },
+  decisionBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+    marginRight: 10,
+  },
+  reasonText: {
+    marginTop: 8,
+    fontSize: 12,
+    fontStyle: 'italic',
+    color: '#D32F2F',
   },
   timestamp: {
     fontSize: 10,
     color: '#999',
     marginTop: 8,
   },
-  assignModal: {
+  modalContent: {
     backgroundColor: 'white',
-    padding: 20,
+    padding: 24,
     margin: 20,
-    borderRadius: 12,
+    borderRadius: 16,
   },
-  modalSubtitle: {
-    color: '#666',
-    marginBottom: 12,
+  textInput: {
+    borderWidth: 1,
+    borderColor: '#DDD',
+    borderRadius: 8,
+    padding: 12,
+    marginVertical: 16,
+    textAlignVertical: 'top',
   },
-  headerButtons: {
+  modalActions: {
     flexDirection: 'row',
-    alignItems: 'center',
-  },
+    justifyContent: 'flex-end',
+    gap: 8,
+  }
 });
 
 export default AuthorityDashboard;
