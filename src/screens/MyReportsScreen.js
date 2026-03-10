@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, StyleSheet, FlatList, RefreshControl, Image } from 'react-native';
 import { Card, Text, Title, Paragraph, Chip, useTheme, ActivityIndicator } from 'react-native-paper';
-import { fetchMyReports } from '../api/api';
+import { fetchMyReports, UPLOAD_URL } from '../api/api';
 
 const MyReportsScreen = ({ route }) => {
   const { user } = route.params;
@@ -47,7 +47,7 @@ const MyReportsScreen = ({ route }) => {
         <View style={styles.imageContainer}>
           {item.image ? (
             <Image 
-              source={{ uri: `http://10.212.38.3:5000/static/uploads/${item.image}` }} 
+              source={{ uri: `${UPLOAD_URL}/${item.image}` }} 
               style={styles.image} 
             />
           ) : (

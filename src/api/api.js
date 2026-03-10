@@ -1,8 +1,10 @@
 import axios from 'axios';
 
-// Replace with your local machine's IP address (run ipconfig to find it)
-// We use 10.212.38.3 as found from ipconfig
-const BASE_URL = 'http://10.212.38.3:5000/api';
+const HOST = '10.52.36.3';
+const PORT = '5000';
+const BASE_URL = `http://${HOST}:${PORT}/api`;
+export const UPLOAD_URL = `http://${HOST}:${PORT}/static/uploads`;
+export const IMAGE_URL = `http://${HOST}:${PORT}/static/images`;
 
 const apiClient = axios.create({
   baseURL: BASE_URL,

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, ScrollView, Image, FlatList, TouchableOpacity } from 'react-native';
 import { List, Card, Title, Paragraph, ActivityIndicator, useTheme, Chip, Text, Divider, Button } from 'react-native-paper';
 import { Info, Map, Newspaper, Utensils, BookOpen, Clock, Bus, MapPin, CheckCircle, XCircle, Heart } from 'lucide-react-native';
-import { fetchAwarenessData } from '../api/api';
+import { fetchAwarenessData, IMAGE_URL } from '../api/api';
 
 const AwarenessScreen = () => {
   const [awarenessData, setAwarenessData] = useState(null);
@@ -10,7 +10,7 @@ const AwarenessScreen = () => {
   const [selectedCategory, setSelectedCategory] = useState('tourism');
   const theme = useTheme();
 
-  const BASE_IMAGE_URL = 'http://10.212.38.3:5000/static/images/';
+  const BASE_IMAGE_URL = `${IMAGE_URL}/`;
 
   useEffect(() => {
     const loadData = async () => {
