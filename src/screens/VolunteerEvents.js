@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, FlatList, Alert } from 'react-native';
 import { Text, Card, Title, Paragraph, Button, Chip, ActivityIndicator, useTheme } from 'react-native-paper';
 import { Calendar, MapPin, Award } from 'lucide-react-native';
-import { fetchVolunteerEvents, joinEvent } from '../api/api';
+import { fetchVolunteerEvents, joinEvent, joinTask } from '../api/api';
 
 const VolunteerEvents = ({ route }) => {
   const { user } = route.params;
@@ -25,10 +25,15 @@ const VolunteerEvents = ({ route }) => {
     loadEvents();
   }, []);
 
-  const handleJoin = async (eventId) => {
+  const handleJoin = async (item) => {
     try {
-      await joinEvent(user.user_id, eventId);
-      Alert.alert('Success', 'You have joined the event!');
+      if (item.item_type === 'task') {
+        await joinTask(user.user_id, item.id);
+        Alert.alert('Success', 'You have joined this cleanup task!');
+      } else {
+        await joinEvent(user.user_id, item.id);
+        Alert.alert('Success', 'You have joined the event!');
+      }
       loadEvents();
     } catch (err) {
       Alert.alert('Error', err.message);
@@ -40,33 +45,41 @@ const VolunteerEvents = ({ route }) => {
       <Card.Content>
         <View style={styles.cardHeader}>
           <Title style={styles.eventTitle}>{item.title}</Title>
-          <Chip icon={() => <Award size={14} color="#fff" />} style={styles.pointsChip} textStyle={{ color: '#fff' }}>
-            {item.points} pts
-          </Chip>
+          <View style={styles.badgeContainer}>
+            <Chip
+              style={[styles.typeChip, { backgroundColor: item.item_type === 'task' ? '#E65100' : '#2E7D32' }]}
+              textStyle={styles.chipText}
+            >
+              {item.item_type.toUpperCase()}
+            </Chip>
+            <Chip icon={() => <Award size={14} color="#fff" />} style={styles.pointsChip} textStyle={{ color: '#fff' }}>
+              {item.points} pts
+            </Chip>
+          </View>
         </View>
-        
+
         <View style={styles.infoRow}>
           <Calendar size={16} color="#666" />
           <Text style={styles.infoText}>{item.date}</Text>
         </View>
-        
+
         <View style={styles.infoRow}>
           <MapPin size={16} color="#666" />
           <Text style={styles.infoText}>{item.area}</Text>
         </View>
-        
+
         <Paragraph style={styles.description}>{item.description}</Paragraph>
       </Card.Content>
       <Card.Actions>
         {item.is_joined ? (
           <Button mode="outlined" disabled style={styles.joinedButton}>Joined</Button>
         ) : (
-          <Button 
-            mode="contained" 
-            onPress={() => handleJoin(item.id)}
-            disabled={item.status === 'Completed'}
+          <Button
+            mode="contained"
+            onPress={() => handleJoin(item)}
+            disabled={item.status === 'Completed' || item.status === 'Resolved'}
           >
-            {item.status === 'Completed' ? 'Completed' : 'Join Event'}
+            {item.status === 'Completed' || item.status === 'Resolved' ? 'Completed' : 'Join'}
           </Button>
         )}
       </Card.Actions>
@@ -124,6 +137,20 @@ const styles = StyleSheet.create({
   },
   pointsChip: {
     backgroundColor: '#2E7D32',
+    height: 32,
+  },
+  typeChip: {
+    height: 32,
+    marginRight: 4,
+  },
+  chipText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  badgeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   infoRow: {
     flexDirection: 'row',

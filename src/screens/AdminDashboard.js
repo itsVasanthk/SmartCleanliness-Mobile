@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { View, StyleSheet, ScrollView, RefreshControl, Alert } from 'react-native';
 import { Text, Card, Title, Paragraph, Button, useTheme, ActivityIndicator, IconButton, Avatar, Divider, Portal, Modal, List } from 'react-native-paper';
 import { LayoutDashboard, Truck, Users, User, LogOut, X, AlertTriangle, Calendar, Heart } from 'lucide-react-native';
-import { fetchAdminStats, fetchEscalatedComplaints, fetchAvailableVehiclesAdmin, assignVehicleAdmin } from '../api/api';
+import { fetchAdminStats, fetchEscalatedComplaints, fetchAvailableVehiclesAdmin, assignVehicleAdmin, escalateToHub, getJoinedVolunteers } from '../api/api';
 
 const AdminDashboard = ({ navigation, route }) => {
   const { user } = route.params;
@@ -14,6 +14,7 @@ const AdminDashboard = ({ navigation, route }) => {
   const [visible, setVisible] = useState(false); // Vehicle assignment modal
   const [profileVisible, setProfileVisible] = useState(false);
   const [selectedComplaint, setSelectedComplaint] = useState(null);
+  const [joinedVolunteers, setJoinedVolunteers] = useState([]);
   const theme = useTheme();
 
   const loadData = async () => {
@@ -45,11 +46,25 @@ const AdminDashboard = ({ navigation, route }) => {
   const showAssignModal = async (complaint) => {
     setSelectedComplaint(complaint);
     try {
-      const availableVehicles = await fetchAvailableVehiclesAdmin();
+      const [availableVehicles, joined] = await Promise.all([
+        fetchAvailableVehiclesAdmin(),
+        getJoinedVolunteers(complaint.id)
+      ]);
       setVehicles(availableVehicles);
+      setJoinedVolunteers(joined);
       setVisible(true);
     } catch (err) {
-      Alert.alert('Error', 'Failed to fetch available vehicles');
+      Alert.alert('Error', 'Failed to fetch assignment data');
+    }
+  };
+
+  const handleEscalate = async (complaintId) => {
+    try {
+      await escalateToHub(complaintId);
+      Alert.alert('Success', 'Report escalated to Volunteer Hub');
+      loadData();
+    } catch (err) {
+      Alert.alert('Error', err.message);
     }
   };
 
@@ -76,8 +91,8 @@ const AdminDashboard = ({ navigation, route }) => {
       "Are you sure you want to logout?",
       [
         { text: "Cancel", style: "cancel" },
-        { 
-          text: "Logout", 
+        {
+          text: "Logout",
           style: "destructive",
           onPress: () => navigation.replace('Login')
         }
@@ -95,7 +110,7 @@ const AdminDashboard = ({ navigation, route }) => {
 
   return (
     <View style={{ flex: 1 }}>
-      <ScrollView 
+      <ScrollView
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         style={styles.container}
       >
@@ -105,9 +120,9 @@ const AdminDashboard = ({ navigation, route }) => {
               <Title>Admin Dashboard</Title>
               <Text style={styles.subtitle}>Full System Control</Text>
             </View>
-            <IconButton 
-              icon={() => <User size={24} color={theme.colors.primary} />} 
-              onPress={() => setProfileVisible(true)} 
+            <IconButton
+              icon={() => <User size={24} color={theme.colors.primary} />}
+              onPress={() => setProfileVisible(true)}
               style={styles.profileBtn}
             />
           </View>
@@ -124,12 +139,12 @@ const AdminDashboard = ({ navigation, route }) => {
               <Title>Admin Profile</Title>
               <IconButton icon={() => <X size={20} color="#666" />} onPress={() => setProfileVisible(false)} />
             </View>
-            
+
             <View style={styles.profileInfo}>
-              <Avatar.Text 
-                size={80} 
-                label={user.name[0].toUpperCase()} 
-                style={styles.avatar} 
+              <Avatar.Text
+                size={80}
+                label={user.name[0].toUpperCase()}
+                style={styles.avatar}
               />
               <Title style={styles.profileName}>{user.name}</Title>
               <Text style={styles.profileEmail}>{user.email}</Text>
@@ -140,8 +155,8 @@ const AdminDashboard = ({ navigation, route }) => {
 
             <Divider style={styles.divider} />
 
-            <Button 
-              mode="contained-tonal" 
+            <Button
+              mode="contained-tonal"
               icon={() => <LogOut size={18} color="#D32F2F" />}
               onPress={handleLogout}
               style={styles.logoutBtn}
@@ -163,7 +178,7 @@ const AdminDashboard = ({ navigation, route }) => {
               <Text style={styles.statLab}>Escalated</Text>
             </Card.Content>
           </Card>
-          
+
           <Card style={[styles.statCard, { borderLeftColor: '#2196F3', borderLeftWidth: 4 }]}>
             <Card.Content>
               <View style={styles.statHeader}>
@@ -185,7 +200,7 @@ const AdminDashboard = ({ navigation, route }) => {
               <Text style={styles.statLab}>Vehicles</Text>
             </Card.Content>
           </Card>
-          
+
           <Card style={[styles.statCard, { borderLeftColor: '#E91E63', borderLeftWidth: 4 }]}>
             <Card.Content>
               <View style={styles.statHeader}>
@@ -199,8 +214,8 @@ const AdminDashboard = ({ navigation, route }) => {
 
         {/* Admin Actions */}
         <View style={styles.actionsContainer}>
-          <Button 
-            mode="contained" 
+          <Button
+            mode="contained"
             onPress={() => navigation.navigate('EmergencyManagement', { user })}
             icon={() => <Heart size={18} color="#fff" />}
             style={styles.actionBtn}
@@ -208,8 +223,8 @@ const AdminDashboard = ({ navigation, route }) => {
           >
             Manage Funds
           </Button>
-          <Button 
-            mode="contained" 
+          <Button
+            mode="contained"
             onPress={() => navigation.navigate('ManageEvents', { user })}
             icon={() => <Calendar size={18} color="#fff" />}
             style={[styles.actionBtn, { backgroundColor: '#1976D2' }]}
@@ -230,26 +245,74 @@ const AdminDashboard = ({ navigation, route }) => {
         ) : (
           escalatedReports.map((item) => (
             <Card key={item.id} style={styles.complaintCard}>
-              <Card.Title 
-                title={item.type} 
+              <Card.Title
+                title={item.type}
                 subtitle={`${item.area} (ID: ${item.id})`}
-                right={() => <View style={styles.escalatedBadge}><Text style={styles.escalatedText}>ESCALATED</Text></View>}
+                right={() => {
+                  let badgeColor = '#FFEBEE';
+                  let textColor = '#D32F2F';
+                  let label = 'ESCALATED';
+
+                  if (item.status === 'Awaiting Volunteers') {
+                    badgeColor = '#FFF3E0';
+                    textColor = '#E65100';
+                    label = 'HUB ACTIVE';
+                  } else if (item.status === 'Assigning Volunteer') {
+                    badgeColor = '#E3F2FD';
+                    textColor = '#1976D2';
+                    label = 'ASSIGNING';
+                  } else if (item.status === 'Resolved') {
+                    badgeColor = '#E8F5E9';
+                    textColor = '#2E7D32';
+                    label = 'RESOLVED';
+                  }
+
+                  return (
+                    <View style={[styles.escalatedBadge, { backgroundColor: badgeColor }]}>
+                      <Text style={[styles.escalatedText, { color: textColor }]}>{label}</Text>
+                    </View>
+                  );
+                }}
               />
               <Card.Content>
                 <Paragraph>{item.description}</Paragraph>
                 <Divider style={{ marginVertical: 8 }} />
+
+                <View style={styles.infoRow}>
+                  <Users size={14} color="#666" />
+                  <Text style={styles.volunteerCountText}>
+                    {item.volunteer_count} Volunteers Joined
+                  </Text>
+                </View>
+
                 {item.authority_decision === 'disagreed' && (
-                    <View style={styles.reasonBox}>
-                        <Text style={styles.reasonTitle}>Authority Reason for Disagreement:</Text>
-                        <Text style={styles.reasonText}>{item.authority_reason}</Text>
-                    </View>
+                  <View style={styles.reasonBox}>
+                    <Text style={styles.reasonTitle}>Authority Reason for Disagreement:</Text>
+                    <Text style={styles.reasonText}>{item.authority_reason}</Text>
+                  </View>
                 )}
                 <Text style={styles.timestamp}>Reported: {item.created_at}</Text>
               </Card.Content>
-              <Card.Actions>
-                <Button mode="contained" onPress={() => showAssignModal(item)}>
-                  Resolve with Volunteer
-                </Button>
+              <Card.Actions style={styles.cardActions}>
+                {!['Awaiting Volunteers', 'Assigning Volunteer', 'Resolved'].includes(item.status) && (
+                  <Button
+                    mode="outlined"
+                    onPress={() => handleEscalate(item.id)}
+                    style={styles.actionBtnSecondary}
+                  >
+                    Push to Hub
+                  </Button>
+                )}
+                {!['Assigning Volunteer', 'Resolved'].includes(item.status) && (
+                  <Button
+                    mode="contained"
+                    onPress={() => showAssignModal(item)}
+                    style={styles.actionBtnPrimary}
+                    disabled={item.status !== 'Awaiting Volunteers' && item.volunteer_count === 0}
+                  >
+                    Assign & Resolve
+                  </Button>
+                )}
               </Card.Actions>
             </Card>
           ))
@@ -258,24 +321,47 @@ const AdminDashboard = ({ navigation, route }) => {
 
       <Portal>
         <Modal visible={visible} onDismiss={hideModal} contentContainerStyle={styles.assignModal}>
-          <Title>Assign Volunteer & Vehicle</Title>
-          <Paragraph style={styles.modalSubtitle}>Assign an available resource to resolve this report</Paragraph>
-          <Divider style={styles.divider} />
-          {vehicles.length > 0 ? (
-            <ScrollView style={{ maxHeight: 300 }}>
-              {vehicles.map((v) => (
+          <Title>Finalize Assignment</Title>
+          <Paragraph style={styles.modalSubtitle}>Select from people who joined this cleanup task</Paragraph>
+
+          <Text style={styles.modalSectionTitle}>Manpower (Joined Volunteers)</Text>
+          {joinedVolunteers.length > 0 ? (
+            <ScrollView style={{ maxHeight: 200, marginBottom: 16 }}>
+              {joinedVolunteers.map((v) => (
                 <List.Item
-                  key={v.id}
-                  title={v.volunteer_name}
-                  description={`${v.type} - ${v.number} (${v.area})`}
-                  left={props => <Truck {...props} />}
-                  onPress={() => handleAssign(v.id)}
+                  key={v.volunteer_id}
+                  title={v.name}
+                  description={v.vehicle_type ? `Has ${v.vehicle_type}` : 'No vehicle'}
+                  left={props => <User {...props} size={20} />}
+                  onPress={() => handleAssign(v.volunteer_id)}
+                  style={styles.listItem}
                 />
               ))}
             </ScrollView>
           ) : (
-            <Paragraph>No resources available at the moment.</Paragraph>
+            <Paragraph style={styles.emptySmall}>No-one has joined this task yet.</Paragraph>
           )}
+
+          <Divider style={styles.divider} />
+
+          <Text style={styles.modalSectionTitle}>Or Assign Available Vehicle</Text>
+          {vehicles.length > 0 ? (
+            <ScrollView style={{ maxHeight: 150 }}>
+              {vehicles.map((v) => (
+                <List.Item
+                  key={v.id}
+                  title={v.volunteer_name}
+                  description={`${v.type} - ${v.number}`}
+                  left={props => <Truck {...props} size={20} />}
+                  onPress={() => handleAssign(v.id)}
+                  style={styles.listItem}
+                />
+              ))}
+            </ScrollView>
+          ) : (
+            <Paragraph style={styles.emptySmall}>No specialized vehicles available.</Paragraph>
+          )}
+
           <Button onPress={hideModal} style={{ marginTop: 16 }}>Cancel</Button>
         </Modal>
       </Portal>
@@ -460,6 +546,47 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     backgroundColor: '#FFEBEE',
   },
+  cardActions: {
+    padding: 8,
+    gap: 8,
+  },
+  actionBtnSecondary: {
+    flex: 1,
+    borderColor: '#1976D2',
+  },
+  actionBtnPrimary: {
+    flex: 1,
+    backgroundColor: '#2E7D32',
+  },
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  volunteerCountText: {
+    fontSize: 12,
+    color: '#666',
+    marginLeft: 6,
+    fontWeight: '600',
+  },
+  modalSectionTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 8,
+    marginTop: 8,
+  },
+  emptySmall: {
+    fontSize: 12,
+    color: '#999',
+    fontStyle: 'italic',
+    marginBottom: 12,
+  },
+  listItem: {
+    paddingVertical: 0,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
+  }
 });
 
 export default AdminDashboard;

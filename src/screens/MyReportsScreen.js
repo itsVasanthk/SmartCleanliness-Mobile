@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, StyleSheet, FlatList, RefreshControl, Image, Alert } from 'react-native';
-import { Card, Text, Title, Paragraph, Chip, useTheme, ActivityIndicator, Button, Portal, Modal, IconButton, TextInput, Divider } from 'react-native-paper';
+import { Card, Text, Title, Paragraph, Chip, useTheme, ActivityIndicator, Button, Portal, Modal, IconButton, TextInput } from 'react-native-paper';
 import { fetchMyReports, UPLOAD_URL, submitFeedback } from '../api/api';
-import { Edit2, MessageSquare, AlertTriangle, CheckCircle2 } from 'lucide-react-native';
+import { Edit2, MessageSquare, AlertTriangle, CheckCircle2, MapPin, Clock } from 'lucide-react-native';
 
 const MyReportsScreen = ({ navigation, route }) => {
   const { user } = route.params;
@@ -40,21 +40,21 @@ const MyReportsScreen = ({ navigation, route }) => {
 
   const handleFeedback = async () => {
     if (!feedbackText.trim()) {
-        Alert.alert('Error', 'Please provide feedback text');
-        return;
+      Alert.alert('Error', 'Please provide feedback text');
+      return;
     }
     try {
-        await submitFeedback({
-            complaint_id: selectedReport.complaint_id,
-            feedback: feedbackText,
-            rating: rating
-        });
-        Alert.alert('Success', 'Thank you for your feedback!');
-        setFeedbackVisible(false);
-        setFeedbackText('');
-        loadReports();
+      await submitFeedback({
+        complaint_id: selectedReport.complaint_id,
+        feedback: feedbackText,
+        rating: rating
+      });
+      Alert.alert('Success', 'Thank you for your feedback!');
+      setFeedbackVisible(false);
+      setFeedbackText('');
+      loadReports();
     } catch (err) {
-        Alert.alert('Error', err.message);
+      Alert.alert('Error', err.message);
     }
   };
 
@@ -69,88 +69,89 @@ const MyReportsScreen = ({ navigation, route }) => {
   };
 
   const renderItem = ({ item }) => (
-    <Card style={styles.card}>
-      <Card.Content style={styles.cardContent}>
-        <View style={styles.imageContainer}>
+    <Card style={styles.premiumCard}>
+      <View style={styles.cardHeader}>
+        <View style={styles.imageBox}>
           {item.image ? (
-            <Image 
-              source={{ uri: `${UPLOAD_URL}/${item.image}` }} 
-              style={styles.image} 
+            <Image
+              source={{ uri: `${UPLOAD_URL}/${item.image}` }}
+              style={styles.cardImage}
             />
           ) : (
             <View style={styles.imagePlaceholder}>
-              <Text>No Image</Text>
+              <Text style={{ fontSize: 10, color: '#999' }}>No Image</Text>
             </View>
           )}
         </View>
-        <View style={styles.infoContainer}>
-          <View style={styles.titleRow}>
-            <Title style={styles.garbageType}>{item.garbage_type}</Title>
-            <Chip 
-              textStyle={{ color: '#fff', fontSize: 10, fontWeight: 'bold' }} 
-              style={{ backgroundColor: getStatusColor(item.status), borderRadius: 6 }}
-              compact
-            >
-              {item.status.toUpperCase()}
-            </Chip>
+        <View style={styles.cardInfo}>
+          <View style={styles.typeRow}>
+            <Title style={styles.cardType}>{item.garbage_type}</Title>
+            <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) + '20' }]}>
+              <Text style={[styles.statusText, { color: getStatusColor(item.status) }]}>{item.status.toUpperCase()}</Text>
+            </View>
           </View>
-          <Paragraph numberOfLines={1} style={styles.description}>{item.description}</Paragraph>
-          
+
+          <View style={styles.locationRow}>
+            <MapPin size={12} color="#666" />
+            <Text style={styles.locationText} numberOfLines={1}>{item.area}</Text>
+          </View>
+
+          <Paragraph numberOfLines={2} style={styles.cardDesc}>{item.description}</Paragraph>
+
           {/* Decision Status */}
           {item.authority_decision !== 'pending' && (
-              <View style={[styles.decisionBox, { backgroundColor: item.authority_decision === 'agreed' ? '#E8F5E9' : '#FFEBEE' }]}>
-                  <Text style={[styles.decisionText, { color: item.authority_decision === 'agreed' ? '#2E7D32' : '#C62828' }]}>
-                      Govt Decision: {item.authority_decision.toUpperCase()}
-                  </Text>
-                  {item.authority_reason && (
-                      <Text style={styles.reasonText}>Reason: {item.authority_reason}</Text>
-                  )}
-              </View>
-          )}
-
-          {/* Escalation Status */}
-          {item.escalated_to_admin && (
-              <View style={styles.escalationBox}>
-                  <AlertTriangle size={14} color="#D32F2F" />
-                  <Text style={styles.escalationText}>Escalated to Admin for Resolution</Text>
-              </View>
+            <View style={[styles.decisionBox, { backgroundColor: item.authority_decision === 'agreed' ? '#E8F5E9' : '#FFEBEE' }]}>
+              <Text style={[styles.decisionText, { color: item.authority_decision === 'agreed' ? '#2E7D32' : '#C62828' }]}>
+                Govt: {item.authority_decision.toUpperCase()}
+              </Text>
+            </View>
           )}
 
           <View style={styles.footerRow}>
-            <Text style={styles.date}>{item.created_at}</Text>
-            <Text style={styles.area}>{item.area}</Text>
+            <Clock size={10} color="#999" />
+            <Text style={styles.dateText}>{item.created_at.split(' ')[0]}</Text>
           </View>
         </View>
-      </Card.Content>
-      
+      </View>
+
+      {/* Escalation Status */}
+      {item.escalated_to_admin && (
+        <View style={styles.escalationBar}>
+          <AlertTriangle size={12} color="#fff" />
+          <Text style={styles.escalationText}>Escalated to Admin</Text>
+        </View>
+      )}
+
       <Card.Actions style={styles.cardActions}>
         {item.status === 'Pending' && item.authority_decision === 'pending' && (
-          <Button 
-            icon={() => <Edit2 size={16} color={theme.colors.primary} />} 
+          <Button
+            icon={() => <Edit2 size={16} color={theme.colors.primary} />}
             onPress={() => navigation.navigate('Report', { editReport: item })}
           >
             Edit
           </Button>
         )}
-        
+
         {item.status === 'Resolved' && !item.citizen_feedback && (
-          <Button 
-            icon={() => <MessageSquare size={16} color="#4CAF50" />} 
-            textColor="#4CAF50"
+          <Button
+            mode="contained"
+            buttonColor="#2E7D32"
+            icon={() => <MessageSquare size={16} color="#fff" />}
             onPress={() => {
-                setSelectedReport(item);
-                setFeedbackVisible(true);
+              setSelectedReport(item);
+              setFeedbackVisible(true);
             }}
+            style={styles.feedbackBtn}
           >
             Feedback
           </Button>
         )}
 
         {item.citizen_feedback && (
-            <View style={styles.feedbackGiven}>
-                <CheckCircle2 size={14} color="#4CAF50" />
-                <Text style={styles.feedbackGivenText}>Feedback Sent</Text>
-            </View>
+          <View style={styles.feedbackGiven}>
+            <CheckCircle2 size={16} color="#4CAF50" />
+            <Text style={styles.feedbackGivenText}>Feedback Sent</Text>
+          </View>
         )}
       </Card.Actions>
     </Card>
@@ -165,57 +166,57 @@ const MyReportsScreen = ({ navigation, route }) => {
   }
 
   return (
-    <View style={{ flex: 1 }}>
-        <FlatList
+    <View style={{ flex: 1, backgroundColor: '#F8F9FA' }}>
+      <FlatList
         data={reports}
         renderItem={renderItem}
         keyExtractor={(item) => item.complaint_id.toString()}
         contentContainerStyle={styles.list}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         ListEmptyComponent={
-            <View style={styles.emptyContainer}>
+          <View style={styles.emptyContainer}>
             <Text style={styles.emptyText}>You haven't reported any garbage yet.</Text>
-            </View>
+          </View>
         }
-        />
+      />
 
-        <Portal>
-            <Modal 
-                visible={feedbackVisible} 
-                onDismiss={() => setFeedbackVisible(false)}
-                contentContainerStyle={styles.modalContent}
-            >
-                <Title>Report Feedback</Title>
-                <Paragraph>How would you rate the resolution of your report?</Paragraph>
-                
-                <View style={styles.ratingRow}>
-                    {[1, 2, 3, 4, 5].map((star) => (
-                        <IconButton 
-                            key={star}
-                            icon="star" 
-                            iconColor={rating >= star ? '#FFD700' : '#E0E0E0'} 
-                            onPress={() => setRating(star)} 
-                        />
-                    ))}
-                </View>
+      <Portal>
+        <Modal
+          visible={feedbackVisible}
+          onDismiss={() => setFeedbackVisible(false)}
+          contentContainerStyle={styles.modalContent}
+        >
+          <Title>Report Feedback</Title>
+          <Paragraph>How would you rate the resolution of your report?</Paragraph>
 
-                <TextInput
-                    label="Feedback Details"
-                    placeholder="Tell us about the cleaning quality..."
-                    multiline
-                    numberOfLines={4}
-                    value={feedbackText}
-                    onChangeText={setFeedbackText}
-                    mode="outlined"
-                    style={styles.textInput}
-                />
+          <View style={styles.ratingRow}>
+            {[1, 2, 3, 4, 5].map((star) => (
+              <IconButton
+                key={star}
+                icon="star"
+                iconColor={rating >= star ? '#FFD700' : '#E0E0E0'}
+                onPress={() => setRating(star)}
+              />
+            ))}
+          </View>
 
-                <View style={styles.modalActions}>
-                    <Button onPress={() => setFeedbackVisible(false)}>Cancel</Button>
-                    <Button mode="contained" onPress={handleFeedback}>Submit Feedback</Button>
-                </View>
-            </Modal>
-        </Portal>
+          <TextInput
+            label="Feedback Details"
+            placeholder="Tell us about the cleaning quality..."
+            multiline
+            numberOfLines={4}
+            value={feedbackText}
+            onChangeText={setFeedbackText}
+            mode="outlined"
+            style={styles.textInput}
+          />
+
+          <View style={styles.modalActions}>
+            <Button onPress={() => setFeedbackVisible(false)}>Cancel</Button>
+            <Button mode="contained" onPress={handleFeedback}>Submit Feedback</Button>
+          </View>
+        </Modal>
+      </Portal>
     </View>
   );
 };
@@ -227,27 +228,32 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   list: {
-    padding: 16,
+    paddingVertical: 16,
   },
-  card: {
-    marginBottom: 16,
-    borderRadius: 12,
+  premiumCard: {
+    marginHorizontal: 16,
+    marginBottom: 20,
+    borderRadius: 20,
     backgroundColor: '#fff',
-    elevation: 2,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
     overflow: 'hidden',
   },
-  cardContent: {
+  cardHeader: {
     flexDirection: 'row',
-    padding: 12,
+    padding: 16,
   },
-  imageContainer: {
+  imageBox: {
     width: 90,
-    height: 90,
-    borderRadius: 8,
+    height: 110,
+    borderRadius: 12,
     overflow: 'hidden',
     backgroundColor: '#F0F0F0',
   },
-  image: {
+  cardImage: {
     width: '100%',
     height: '100%',
   },
@@ -256,92 +262,112 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  infoContainer: {
+  cardInfo: {
     flex: 1,
-    marginLeft: 12,
+    marginLeft: 16,
+    justifyContent: 'space-between',
   },
-  titleRow: {
+  typeRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 4,
   },
-  garbageType: {
-    fontSize: 16,
+  cardType: {
+    fontSize: 18,
     fontWeight: 'bold',
-    flex: 1,
-    marginRight: 8,
+    color: '#1A1A1A',
   },
-  description: {
-    fontSize: 13,
-    color: '#666',
-    marginBottom: 6,
+  statusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
   },
-  decisionBox: {
-    padding: 6,
-    borderRadius: 6,
-    marginBottom: 6,
+  statusText: {
+    fontSize: 9,
+    fontWeight: '800',
   },
-  decisionText: {
-    fontSize: 11,
-    fontWeight: 'bold',
-  },
-  reasonText: {
-    fontSize: 10,
-    fontStyle: 'italic',
-    marginTop: 2,
-  },
-  escalationBox: {
+  locationRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFEBEE',
-    padding: 6,
-    borderRadius: 6,
-    marginBottom: 6,
-    gap: 4,
+    marginTop: 4,
   },
-  escalationText: {
+  locationText: {
+    fontSize: 12,
+    color: '#666',
+    marginLeft: 4,
+  },
+  cardDesc: {
+    fontSize: 13,
+    color: '#444',
+    marginTop: 6,
+    lineHeight: 18,
+  },
+  decisionBox: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    marginTop: 8,
+    alignSelf: 'flex-start',
+  },
+  decisionText: {
     fontSize: 10,
-    color: '#D32F2F',
     fontWeight: 'bold',
   },
   footerRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 4,
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    marginTop: 10,
   },
-  date: {
+  dateText: {
     fontSize: 10,
     color: '#999',
+    marginLeft: 4,
   },
-  area: {
+  escalationBar: {
+    backgroundColor: '#D32F2F',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 4,
+    gap: 6,
+  },
+  escalationText: {
+    color: '#fff',
     fontSize: 10,
-    color: '#2E7D32',
-    fontWeight: '500',
+    fontWeight: 'bold',
   },
   cardActions: {
     justifyContent: 'flex-end',
     borderTopWidth: 1,
-    borderTopColor: '#F5F5F5',
+    borderTopColor: '#F0F0F0',
     paddingHorizontal: 8,
+    backgroundColor: '#FAFAFA',
   },
   feedbackGiven: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    paddingRight: 8,
+    paddingVertical: 8,
+    paddingRight: 12,
+    gap: 6,
   },
   feedbackGivenText: {
-      fontSize: 12,
-      color: '#4CAF50',
-      fontWeight: '500',
+    fontSize: 12,
+    color: '#4CAF50',
+    fontWeight: 'bold',
+  },
+  feedbackBtn: {
+    borderRadius: 10,
+    marginVertical: 6,
   },
   emptyContainer: {
     padding: 40,
     alignItems: 'center',
+    marginTop: 100,
   },
   emptyText: {
-    color: '#666',
+    color: '#999',
+    textAlign: 'center',
   },
   modalContent: {
     backgroundColor: 'white',

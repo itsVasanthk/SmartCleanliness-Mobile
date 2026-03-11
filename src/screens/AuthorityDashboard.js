@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, StyleSheet, ScrollView, RefreshControl, Alert, TextInput } from 'react-native';
+import { View, StyleSheet, ScrollView, RefreshControl, Alert, TextInput, Image, TouchableOpacity } from 'react-native';
 import { Text, Card, Title, Paragraph, Button, Divider, useTheme, ActivityIndicator, Modal, Portal, IconButton, Avatar } from 'react-native-paper';
-import { ClipboardCheck, LayoutDashboard, User, LogOut, X, CheckCircle, XCircle } from 'lucide-react-native';
-import { fetchAuthorityStats, fetchAllComplaints, authorityDecide } from '../api/api';
+import { ClipboardCheck, LayoutDashboard, User, LogOut, X, CheckCircle, XCircle, History, MapPin, Clock } from 'lucide-react-native';
+import { fetchAuthorityStats, fetchAllComplaints, authorityDecide, UPLOAD_URL } from '../api/api';
 
 const AuthorityDashboard = ({ navigation, route }) => {
   const { user } = route.params;
@@ -41,14 +41,20 @@ const AuthorityDashboard = ({ navigation, route }) => {
     loadData();
   }, []);
 
-  const handleDecision = async (decision) => {
+  const handleDecision = async (decision, complaintId = null) => {
     if (decision === 'disagreed' && !disagreeReason.trim()) {
       Alert.alert('Error', 'Please provide a reason for disagreement');
       return;
     }
 
+    const id = complaintId || selectedComplaint?.id;
+    if (!id) {
+      Alert.alert('Error', 'No complaint selected');
+      return;
+    }
+
     try {
-      await authorityDecide(selectedComplaint.id, decision, disagreeReason);
+      await authorityDecide(id, decision, disagreeReason);
       Alert.alert('Success', `Report ${decision} successfully`);
       setDecisionVisible(false);
       setDisagreeReason('');
@@ -70,8 +76,8 @@ const AuthorityDashboard = ({ navigation, route }) => {
       "Are you sure you want to logout?",
       [
         { text: "Cancel", style: "cancel" },
-        { 
-          text: "Logout", 
+        {
+          text: "Logout",
           style: "destructive",
           onPress: () => navigation.replace('Login')
         }
@@ -89,7 +95,7 @@ const AuthorityDashboard = ({ navigation, route }) => {
 
   return (
     <View style={{ flex: 1 }}>
-      <ScrollView 
+      <ScrollView
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         style={styles.container}
       >
@@ -99,9 +105,9 @@ const AuthorityDashboard = ({ navigation, route }) => {
               <Title>Government Panel</Title>
               <Text style={styles.subtitle}>Report Review & Verification</Text>
             </View>
-            <IconButton 
-              icon={() => <User size={24} color={theme.colors.primary} />} 
-              onPress={() => setProfileVisible(true)} 
+            <IconButton
+              icon={() => <User size={24} color={theme.colors.primary} />}
+              onPress={() => setProfileVisible(true)}
               style={styles.profileBtn}
             />
           </View>
@@ -118,12 +124,12 @@ const AuthorityDashboard = ({ navigation, route }) => {
               <Title>Authority Profile</Title>
               <IconButton icon={() => <X size={20} color="#666" />} onPress={() => setProfileVisible(false)} />
             </View>
-            
+
             <View style={styles.profileInfo}>
-              <Avatar.Text 
-                size={80} 
-                label={user.name[0].toUpperCase()} 
-                style={styles.avatar} 
+              <Avatar.Text
+                size={80}
+                label={user.name[0].toUpperCase()}
+                style={styles.avatar}
               />
               <Title style={styles.profileName}>{user.name}</Title>
               <Text style={styles.profileEmail}>{user.email}</Text>
@@ -134,8 +140,8 @@ const AuthorityDashboard = ({ navigation, route }) => {
 
             <Divider style={styles.divider} />
 
-            <Button 
-              mode="contained-tonal" 
+            <Button
+              mode="contained-tonal"
               icon={() => <LogOut size={18} color="#D32F2F" />}
               onPress={handleLogout}
               style={styles.logoutBtn}
@@ -145,6 +151,23 @@ const AuthorityDashboard = ({ navigation, route }) => {
             </Button>
           </Modal>
         </Portal>
+
+        {/* History Navigation Button */}
+        <TouchableOpacity
+          style={styles.historyBtn}
+          onPress={() => navigation.navigate('ReviewedReports', { user })}
+        >
+          <View style={styles.historyBtnContent}>
+            <View style={styles.historyIconBox}>
+              <History size={24} color={theme.colors.primary} />
+            </View>
+            <View style={{ flex: 1, marginLeft: 12 }}>
+              <Text style={styles.historyTitle}>Cleanup History</Text>
+              <Text style={styles.historySub}>View past decisions and track progress</Text>
+            </View>
+            <IconButton icon="chevron-right" iconColor="#666" />
+          </View>
+        </TouchableOpacity>
 
         {/* Stats Grid */}
         <View style={styles.statsGrid}>
@@ -157,7 +180,7 @@ const AuthorityDashboard = ({ navigation, route }) => {
               <Text style={styles.statLab}>Total Reports</Text>
             </Card.Content>
           </Card>
-          
+
           <Card style={[styles.statCard, { borderLeftColor: '#FF9800', borderLeftWidth: 4 }]}>
             <Card.Content>
               <View style={styles.statHeader}>
@@ -179,7 +202,7 @@ const AuthorityDashboard = ({ navigation, route }) => {
               <Text style={styles.statLab}>Agreed</Text>
             </Card.Content>
           </Card>
-          
+
           <Card style={[styles.statCard, { borderLeftColor: '#f44336', borderLeftWidth: 4 }]}>
             <Card.Content>
               <View style={styles.statHeader}>
@@ -192,71 +215,79 @@ const AuthorityDashboard = ({ navigation, route }) => {
         </View>
 
         <View style={styles.sectionHeader}>
-          <Title>Reports to Review</Title>
+          <Title style={styles.sectionTitle}>Reports to Review</Title>
+          <View style={styles.titleUnderline} />
         </View>
 
         {complaints.filter(c => c.authority_decision === 'pending').map((item) => (
-          <Card key={item.id} style={styles.complaintCard}>
-            <Card.Title 
-              title={item.type} 
-              subtitle={item.area} 
-              right={() => <Text style={styles.statusLabel}>PENDING</Text>}
-            />
-            <Card.Content>
-              <Paragraph>{item.description}</Paragraph>
-              <Text style={styles.timestamp}>{item.created_at}</Text>
-            </Card.Content>
-            <Card.Actions>
-              <Button 
-                mode="contained" 
+          <Card key={item.id} style={styles.premiumCard}>
+            <View style={styles.cardHeader}>
+              <View style={styles.imageBox}>
+                {item.image ? (
+                  <Image source={{ uri: `${UPLOAD_URL}/${item.image}` }} style={styles.cardImage} />
+                ) : (
+                  <View style={styles.imagePlaceholder}><Text style={{ fontSize: 10, color: '#999' }}>No Image</Text></View>
+                )}
+              </View>
+              <View style={styles.cardInfo}>
+                <View style={styles.typeRow}>
+                  <Text style={styles.cardType}>{item.type}</Text>
+                  <View style={styles.pendingBadge}>
+                    <Clock size={10} color="#FF9800" />
+                    <Text style={styles.pendingText}>PENDING</Text>
+                  </View>
+                </View>
+
+                <View style={styles.locationRow}>
+                  <MapPin size={12} color="#666" />
+                  <Text style={styles.locationText} numberOfLines={1}>{item.area}</Text>
+                </View>
+
+                <Paragraph style={styles.cardDesc} numberOfLines={2}>{item.description}</Paragraph>
+
+                <View style={styles.footer}>
+                  <Clock size={12} color="#999" />
+                  <Text style={styles.timestamp}>{item.created_at.split(' ')[0]}</Text>
+                </View>
+              </View>
+            </View>
+
+            <View style={styles.cardActionsContainer}>
+              <Button
+                mode="contained"
                 buttonColor="#4CAF50"
                 onPress={() => {
                   setSelectedComplaint(item);
-                  handleDecision('agreed');
+                  handleDecision('agreed', item.id);
                 }}
+                style={styles.actionBtn}
+                contentStyle={{ height: 45 }}
+                labelStyle={{ fontWeight: 'bold' }}
               >
                 Agree
               </Button>
-              <Button 
-                mode="contained" 
+              <Button
+                mode="contained"
                 buttonColor="#f44336"
                 onPress={() => openDecisionModal(item)}
+                style={styles.actionBtn}
+                contentStyle={{ height: 45 }}
+                labelStyle={{ fontWeight: 'bold' }}
               >
                 Disagree
               </Button>
-            </Card.Actions>
+            </View>
           </Card>
         ))}
 
-        <Title style={[styles.sectionHeader, { fontSize: 18 }]}>Reviewed Reports</Title>
-        {complaints.filter(c => c.authority_decision !== 'pending').map((item) => (
-          <Card key={item.id} style={[styles.complaintCard, { opacity: 0.8 }]}>
-            <Card.Title 
-              title={item.type} 
-              subtitle={item.area} 
-              right={() => (
-                <View style={[styles.decisionBadge, { backgroundColor: item.authority_decision === 'agreed' ? '#E8F5E9' : '#FFEBEE' }]}>
-                  <Text style={{ color: item.authority_decision === 'agreed' ? '#2E7D32' : '#C62828', fontWeight: 'bold' }}>
-                    {item.authority_decision.toUpperCase()}
-                  </Text>
-                </View>
-              )}
-            />
-            <Card.Content>
-              <Paragraph>{item.description}</Paragraph>
-              {item.authority_reason && (
-                  <Text style={styles.reasonText}>Reason: {item.authority_reason}</Text>
-              )}
-            </Card.Content>
-          </Card>
-        ))}
+        <View style={{ height: 40 }} />
       </ScrollView>
 
       {/* Decision Modal (for disagreement) */}
       <Portal>
-        <Modal 
-          visible={decisionVisible} 
-          onDismiss={() => setDecisionVisible(false)} 
+        <Modal
+          visible={decisionVisible}
+          onDismiss={() => setDecisionVisible(false)}
           contentContainerStyle={styles.modalContent}
         >
           <Title>Reason for Disagreement</Title>
@@ -386,57 +417,171 @@ const styles = StyleSheet.create({
     color: '#666',
   },
   sectionHeader: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     marginTop: 24,
-    marginBottom: 8,
+    marginBottom: 12,
   },
-  complaintCard: {
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#1A1A1A',
+  },
+  titleUnderline: {
+    width: 40,
+    height: 4,
+    backgroundColor: '#2E7D32',
+    borderRadius: 2,
+    marginTop: 4,
+  },
+  historyBtn: {
+    margin: 16,
+    marginBottom: 8,
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    overflow: 'hidden',
+  },
+  historyBtnContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+  },
+  historyIconBox: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: '#E8F5E9',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  historyTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#1A1A1A',
+  },
+  historySub: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 2,
+  },
+  premiumCard: {
     margin: 16,
     marginTop: 0,
-    marginBottom: 12,
+    marginBottom: 16,
+    borderRadius: 20,
+    backgroundColor: '#fff',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    overflow: 'hidden',
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    padding: 16,
+  },
+  imageBox: {
+    width: 90,
+    height: 110,
     borderRadius: 12,
+    overflow: 'hidden',
   },
-  statusLabel: {
-    marginRight: 16,
+  cardImage: {
+    width: '100%',
+    height: '100%',
+  },
+  cardInfo: {
+    flex: 1,
+    marginLeft: 16,
+    justifyContent: 'space-between',
+  },
+  typeRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  cardType: {
+    fontSize: 18,
     fontWeight: 'bold',
-    color: '#FF9800',
-    fontSize: 12,
+    color: '#1A1A1A',
   },
-  decisionBadge: {
+  pendingBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF3E0',
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 4,
-    marginRight: 10,
+    borderRadius: 8,
   },
-  reasonText: {
+  pendingText: {
+    color: '#FF9800',
+    fontSize: 10,
+    fontWeight: '800',
+    marginLeft: 4,
+  },
+  locationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  locationText: {
+    fontSize: 13,
+    color: '#666',
+    marginLeft: 4,
+  },
+  cardDesc: {
+    fontSize: 14,
+    color: '#444',
     marginTop: 8,
-    fontSize: 12,
-    fontStyle: 'italic',
-    color: '#D32F2F',
+    lineHeight: 20,
+  },
+  cardActionsContainer: {
+    flexDirection: 'row',
+    padding: 12,
+    gap: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#F0F0F0',
+    backgroundColor: '#FAFAFA',
+  },
+  actionBtn: {
+    flex: 1,
+    borderRadius: 12,
+  },
+  footer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    marginTop: 8,
   },
   timestamp: {
     fontSize: 10,
     color: '#999',
-    marginTop: 8,
+    marginLeft: 4,
   },
   modalContent: {
     backgroundColor: 'white',
     padding: 24,
     margin: 20,
-    borderRadius: 16,
+    borderRadius: 20,
   },
   textInput: {
     borderWidth: 1,
     borderColor: '#DDD',
-    borderRadius: 8,
+    borderRadius: 12,
     padding: 12,
     marginVertical: 16,
     textAlignVertical: 'top',
+    backgroundColor: '#F9F9F9',
   },
   modalActions: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    gap: 8,
+    gap: 12,
   }
 });
 
