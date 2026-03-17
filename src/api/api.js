@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const HOST = '10.52.36.3';
+const HOST = '10.181.118.3';
 const PORT = '5000';
 const BASE_URL = `http://${HOST}:${PORT}/api`;
 export const UPLOAD_URL = `http://${HOST}:${PORT}/static/uploads`;
