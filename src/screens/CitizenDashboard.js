@@ -48,6 +48,42 @@ const CitizenDashboard = ({ navigation, route }) => {
       ]
     );
   };
+  const getMotivationalContent = () => {
+    if (!stats) return { 
+      image: require('../../assets/ai_motivation/equal.png'), 
+      message: "Loading status...", 
+      title: "Madurai Status",
+      color: "#FF9800"
+    };
+    
+    const resolved = parseInt(stats.resolved_reports) || 0;
+    const pending = parseInt(stats.pending_reports) || 0;
+
+    if (resolved < pending) {
+      return {
+        image: require('../../assets/ai_motivation/motivate.png'),
+        message: "We need your help! Volunteer for a cleaner Namma Madurai.",
+        title: "Action Needed!",
+        color: "#F44336"
+      };
+    } else if (resolved > pending) {
+      return {
+        image: require('../../assets/ai_motivation/happy.png'),
+        message: "Incredible work! Our city shines because of you all.",
+        title: "Madurai is Proud!",
+        color: "#4CAF50"
+      };
+    } else {
+      return {
+        image: require('../../assets/ai_motivation/equal.png'),
+        message: "We are making steady progress! Keep up the good work.",
+        title: "Steady Progress",
+        color: "#2196F3"
+      };
+    }
+  };
+
+  const motivation = getMotivationalContent();
 
   return (
     <View style={{ flex: 1 }}>
@@ -114,13 +150,13 @@ const CitizenDashboard = ({ navigation, route }) => {
         <Card style={styles.emotionCard}>
           <Card.Content style={styles.emotionContent}>
             <View style={styles.emotionTextContainer}>
-              <Title style={styles.statusTitle}>Madurai Status</Title>
+              <Title style={[styles.statusTitle, { color: motivation.color }]}>{motivation.title}</Title>
               <Paragraph style={styles.sloganText}>
-                {stats?.slogan || "Let's keep our city clean!"}
+                {motivation.message}
               </Paragraph>
             </View>
             <View style={styles.emotionImageContainer}>
-               <Award size={60} color={stats?.emotion === 'happy' ? '#4CAF50' : '#FF9800'} />
+               <Image source={motivation.image} style={styles.halfWidthImage} resizeMode="contain" />
             </View>
           </Card.Content>
         </Card>
@@ -305,29 +341,45 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFEBEE',
   },
   emotionCard: {
-    margin: 16,
+    marginHorizontal: 16,
+    marginBottom: 16,
+    marginTop: 8,
     borderRadius: 16,
     backgroundColor: '#fff',
+    elevation: 3,
   },
   emotionContent: {
     flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
+    alignItems: 'center', // Center vertically
+    paddingVertical: 16,
+    paddingHorizontal: 12,
   },
   emotionTextContainer: {
     flex: 1,
+    paddingRight: 10,
+    justifyContent: 'center', // Center vertically
   },
   statusTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
+    fontSize: 22, // Slightly larger
+    fontWeight: '800',
+    marginBottom: 8, // More spacing
   },
   sloganText: {
-    fontSize: 13,
-    color: '#666',
-    lineHeight: 18,
+    fontSize: 16, // Larger font
+    color: '#555',
+    lineHeight: 24, // More line-height for readability and vertical space
   },
   emotionImageContainer: {
-    paddingLeft: 12,
+    width: '45%',
+    aspectRatio: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  halfWidthImage: {
+    width: '100%',
+    height: '100%',
   },
   statsGrid: {
     flexDirection: 'row',
